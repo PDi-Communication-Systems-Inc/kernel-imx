@@ -96,13 +96,26 @@
 #define AR6MX_BL1_EN        IMX_GPIO_NR(1, 12)
 #define AR6MX_SPK_DET	      IMX_GPIO_NR(7, 8)
 #define AR6MX_MIC_DET	      IMX_GPIO_NR(1, 9)
-#define AR6MX_PCIE_RST_B	  IMX_GPIO_NR(7, 12)
+
+#define AR6MX_PCIE_RST_B    IMX_GPIO_NR(7, 12)
+
 #define AR6MX_RTC_INT       IMX_GPIO_NR(1, 8)
-#define AR6MX_VER_B0			IMX_GPIO_NR(4, 25)
-#define AR6MX_VER_B1			IMX_GPIO_NR(4, 26)
-#define AR6MX_VER_B2			IMX_GPIO_NR(4, 27)
-#define AR6MX_VER_B3			IMX_GPIO_NR(4, 28)
-#define AR6MX_OTG_PWR_EN		IMX_GPIO_NR(1, 7)
+
+#define AR6MX_VER_B0	    IMX_GPIO_NR(4, 25)
+#define AR6MX_VER_B1	    IMX_GPIO_NR(4, 26)
+#define AR6MX_VER_B2	    IMX_GPIO_NR(4, 27)
+#define AR6MX_VER_B3	    IMX_GPIO_NR(4, 28)
+
+#define AR6MX_OTG_PWR_EN    IMX_GPIO_NR(1, 7)
+
+#define AR6MX_TTL_DI0	    IMX_GPIO_NR(2, 0)
+#define AR6MX_TTL_DI1	    IMX_GPIO_NR(2, 1)
+#define AR6MX_TTL_DI2	    IMX_GPIO_NR(2, 2)
+#define AR6MX_TTL_DI3	    IMX_GPIO_NR(2, 3)
+#define AR6MX_TTL_DI4	    IMX_GPIO_NR(2, 4)
+#define AR6MX_TTL_DI5       IMX_GPIO_NR(2, 5)
+#define AR6MX_TTL_DO0	    IMX_GPIO_NR(2, 6)
+#define AR6MX_TTL_DO1       IMX_GPIO_NR(2, 7)
 
 extern char *gp_reg_id;
 extern char *soc_reg_id;
@@ -112,6 +125,18 @@ static struct clk *sata_clk;
 static int spinor_en;
 static int board_id;
 static int emmc_en;
+
+static void pcie_3v3_reset(void)
+{
+        /* reset miniPCIe */
+        gpio_request(AR6MX_PCIE_RST_B, "pcie_reset_rebB");
+        gpio_direction_output(AR6MX_PCIE_RST_B, 0);
+        /* The PCI Express Mini CEM specification states that PREST# is
+        deasserted minimum 1ms after 3.3vVaux has been applied and stable*/
+        mdelay(1);
+        gpio_set_value(AR6MX_PCIE_RST_B, 1);
+        gpio_free(AR6MX_PCIE_RST_B);
+}
 
 static int __init spinor_enable(char *p)
 {
@@ -668,12 +693,27 @@ static struct gpio mx6q_ar6mx_ver_gpios[] = {
 
 static void ar6mx_suspend_enter(void)
 {
-	/* suspend preparation */
+        /* suspend preparation */
+        printk(KERN_DEBUG "sabreauto_suspend_enter(): set pwr (ctrl, status) low\n");
+        gpio_set_value(AR6MX_TTL_DO0, 0);
+        mdelay(1);
+        gpio_set_value(AR6MX_TTL_DO1, 0);
+        mdelay(1);
 }
 
 static void ar6mx_suspend_exit(void)
 {
 	/* resmue resore */
+        printk(KERN_DEBUG "sabreauto_suspend_exit(): set pwr (ctrl, status) high \n");
+        gpio_set_value(AR6MX_TTL_DO0, 1);
+        mdelay(1);
+        gpio_set_value(AR6MX_TTL_DO1, 1);
+        mdelay(1);
+
+        /* Try to recover PCie bus to prevent please wait message
+           pdi - mrobbeloth */
+        printk(KERN_DEBUG "sabreauto_suspend_exit(): resetting mPCIe bus\n");
+        pcie_3v3_reset();
 }
 static const struct pm_platform_data mx6q_ar6mx_pm_data __initconst = {
 	.name		= "imx_pm",
@@ -845,18 +885,6 @@ static const struct imx_pcie_platform_data mx6_ar6mx_pcie_data __initconst = {
 	.pcie_wake_up	= -EINVAL,
 	.pcie_dis	= -EINVAL,
 };
-
-static void pcie_3v3_reset(void)
-{
-	/* reset miniPCIe */
-	gpio_request(AR6MX_PCIE_RST_B, "pcie_reset_rebB");
-	gpio_direction_output(AR6MX_PCIE_RST_B, 0);
-	/* The PCI Express Mini CEM specification states that PREST# is
-	deasserted minimum 1ms after 3.3vVaux has been applied and stable*/
-	mdelay(1);
-	gpio_set_value(AR6MX_PCIE_RST_B, 1);
-	gpio_free(AR6MX_PCIE_RST_B);
-}
 
 static void board_rev(void)
 {
