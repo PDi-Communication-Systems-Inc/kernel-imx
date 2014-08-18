@@ -1029,6 +1029,12 @@ static void __init mx6_board_init(void)
 	imx6q_add_perfmon(0);
 	imx6q_add_perfmon(1);
 	imx6q_add_perfmon(2);
+
+	/* PDi mrobbeloth add call to register resources and data for ion 
+           driver */
+        if (imx_ion_data.heaps[0].size)
+                platform_device_register_resndata(NULL, "ion-mxc", 0, NULL, 0, \
+                &imx_ion_data, sizeof(imx_ion_data) + sizeof(struct ion_platform_heap));
 }
 
 extern void __iomem *twd_base;
