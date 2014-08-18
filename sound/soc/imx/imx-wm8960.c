@@ -167,28 +167,28 @@ static int imx_hifi_hw_params(struct snd_pcm_substream *substream,
 
 /* imx card dapm widgets */
 static const struct snd_soc_dapm_widget imx_dapm_widgets[] = {
+#if 0
 	SND_SOC_DAPM_SPK("Speaker_R", NULL),
 	SND_SOC_DAPM_SPK("Speaker_L", NULL),
-	SND_SOC_DAPM_HP("Headphone Jack", NULL),
-#if 0
-	SND_SOC_DAPM_MIC("MIC Jack", NULL),
 #endif
+	SND_SOC_DAPM_HP("Headphone Jack", NULL),
+	SND_SOC_DAPM_MIC("MIC Jack", NULL),
 };
 
 /* imx machine connections to the codec pins */
 static const struct snd_soc_dapm_route audio_map[] = {
+#if 0
 	{ "Speaker_R", NULL, "SPK_RP" },
 	{ "Speaker_R", NULL, "SPK_RN" },
 
 	{ "Speaker_L", NULL, "SPK_LP" },
 	{ "Speaker_L", NULL, "SPK_LN" },
+#endif
 	{ "Headphone Jack", NULL, "HP_L" },
 	{ "Headphone Jack", NULL, "HP_R" },
 
-#if 0
 	{ "LINPUT1", NULL, "MICB" },
 	{ "MICB", NULL, "MIC Jack" },
-#endif
 };
 
 static int imx_wm8960_init(struct snd_soc_pcm_runtime *rtd)
@@ -196,7 +196,7 @@ static int imx_wm8960_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_codec *codec = rtd->codec;
 	int ret = 0;
 
-  snd_soc_dapm_nc_pin(&codec->dapm, "LINPUT1");
+  //snd_soc_dapm_nc_pin(&codec->dapm, "LINPUT1");
   snd_soc_dapm_nc_pin(&codec->dapm, "RINPUT1");
   snd_soc_dapm_nc_pin(&codec->dapm, "LINPUT2");
   snd_soc_dapm_nc_pin(&codec->dapm, "RINPUT2");
@@ -211,10 +211,11 @@ static int imx_wm8960_init(struct snd_soc_pcm_runtime *rtd)
 	/* Set up imx specific audio path audio_map */
 	snd_soc_dapm_add_routes(&codec->dapm, audio_map, ARRAY_SIZE(audio_map));
 
-  snd_soc_dapm_enable_pin(&codec->dapm, "Speaker_R");
-  snd_soc_dapm_disable_pin(&codec->dapm, "Speaker_L");
+	//snd_soc_dapm_enable_pin(&codec->dapm, "Speaker_L");
+  //snd_soc_dapm_enable_pin(&codec->dapm, "Speaker_R");
+  //snd_soc_dapm_disable_pin(&codec->dapm, "Speaker_L");
 	snd_soc_dapm_enable_pin(&codec->dapm, "Headphone Jack");
-	/* snd_soc_dapm_enable_pin(&codec->dapm, "MIC"); */
+	snd_soc_dapm_enable_pin(&codec->dapm, "MIC Jack");
 
 	snd_soc_dapm_sync(&codec->dapm);
 
