@@ -196,13 +196,13 @@ static int imx_wm8960_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_codec *codec = rtd->codec;
 	int ret = 0;
 
-  //snd_soc_dapm_nc_pin(&codec->dapm, "LINPUT1");
-  snd_soc_dapm_nc_pin(&codec->dapm, "RINPUT1");
-  snd_soc_dapm_nc_pin(&codec->dapm, "LINPUT2");
-  snd_soc_dapm_nc_pin(&codec->dapm, "RINPUT2");
-  snd_soc_dapm_nc_pin(&codec->dapm, "LINPUT3");
-  snd_soc_dapm_nc_pin(&codec->dapm, "RINPUT3");
-  snd_soc_dapm_nc_pin(&codec->dapm, "OUT3");
+  	//snd_soc_dapm_nc_pin(&codec->dapm, "LINPUT1");
+  	snd_soc_dapm_nc_pin(&codec->dapm, "RINPUT1");
+  	snd_soc_dapm_nc_pin(&codec->dapm, "LINPUT2");
+  	snd_soc_dapm_nc_pin(&codec->dapm, "RINPUT2");
+  	snd_soc_dapm_nc_pin(&codec->dapm, "LINPUT3");
+  	snd_soc_dapm_nc_pin(&codec->dapm, "RINPUT3");
+  	snd_soc_dapm_nc_pin(&codec->dapm, "OUT3");
 
 	/* Add imx specific widgets */
 	snd_soc_dapm_new_controls(&codec->dapm, imx_dapm_widgets,
@@ -212,8 +212,8 @@ static int imx_wm8960_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_add_routes(&codec->dapm, audio_map, ARRAY_SIZE(audio_map));
 
 	//snd_soc_dapm_enable_pin(&codec->dapm, "Speaker_L");
-  //snd_soc_dapm_enable_pin(&codec->dapm, "Speaker_R");
-  //snd_soc_dapm_disable_pin(&codec->dapm, "Speaker_L");
+  	//snd_soc_dapm_enable_pin(&codec->dapm, "Speaker_R");
+  	//snd_soc_dapm_disable_pin(&codec->dapm, "Speaker_L");
 	snd_soc_dapm_enable_pin(&codec->dapm, "Headphone Jack");
 	snd_soc_dapm_enable_pin(&codec->dapm, "MIC Jack");
 
