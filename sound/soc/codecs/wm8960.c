@@ -210,8 +210,9 @@ SOC_SINGLE("Noise Gate Switch", WM8960_NOISEG, 0, 1, 0),
 
 SOC_DOUBLE_R("ADC PCM Capture Volume", WM8960_LADC, WM8960_RADC,
 	0, 255, 0),
-SOC_DOUBLE_R("INPUT1 Volume", WM8960_LINPATH, WM8960_RINPATH,
-	0, 127, 0),
+SOC_DOUBLE_R("ADC Path", WM8960_LINPATH, WM8960_RINPATH,
+	3, 31, 0), /* added this entry for our analog mic - JTS */
+SOC_DOUBLE("Boost Mixer Enable Switch", WM8960_POWER1, 5, 4, 1, 0), /* added this entry for our analog mic - JTS */
 
 SOC_SINGLE_TLV("Left Output Mixer Boost Bypass Volume",
 	       WM8960_BYPASS1, 4, 7, 1, bypass_tlv),
