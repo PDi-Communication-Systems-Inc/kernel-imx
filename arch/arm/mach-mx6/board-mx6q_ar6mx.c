@@ -117,6 +117,14 @@
 #define AR6MX_TTL_DO0	    IMX_GPIO_NR(2, 6)
 #define AR6MX_TTL_DO1       IMX_GPIO_NR(2, 7)
 
+
+/* Android Recovery GPIO */
+#define AR6MX_ANDROID_POWER	      IMX_GPIO_NR(2, 0)
+#define AR6MX_ANDROID_VOLUP	      IMX_GPIO_NR(2, 1)
+#define AR6MX_ANDROID_VOLDOWN	      IMX_GPIO_NR(2, 2)
+#define AR6MX_ANDROID_ARROWLEFT	      IMX_GPIO_NR(2, 3)
+
+
 extern char *gp_reg_id;
 extern char *soc_reg_id;
 extern char *pu_reg_id;
@@ -157,6 +165,51 @@ enum sd_pad_mode {
 	SD_PAD_MODE_MED_SPEED,
 	SD_PAD_MODE_HIGH_SPEED,
 };
+
+
+
+/* Android Recovery Defines */
+#define GPIO_BUTTON(gpio_num, ev_code, act_low, descr, wake)	\
+{								\
+	.gpio		= gpio_num,				\
+	.type		= EV_KEY,				\
+	.code		= ev_code,				\
+	.active_low	= act_low,				\
+	.desc		= "btn " descr,				\
+	.wakeup		= wake,					\
+}
+
+/* Android Recovery structs */
+static struct gpio_keys_button ard_buttons[] = {
+	GPIO_BUTTON(AR6MX_ANDROID_POWER,    KEY_POWER,       1, "power",        1),
+	GPIO_BUTTON(AR6MX_ANDROID_VOLUP,   KEY_VOLUMEUP,   1, "volume-up",   0),
+	GPIO_BUTTON(AR6MX_ANDROID_VOLDOWN, KEY_VOLUMEDOWN, 1, "volume-down", 0),
+	GPIO_BUTTON(AR6MX_ANDROID_ARROWLEFT, KEY_LEFT, 1, "arrow-left", 0),
+};
+
+static struct gpio_keys_platform_data ard_android_button_data = {
+	.buttons	= ard_buttons,
+	.nbuttons	= ARRAY_SIZE(ard_buttons),
+};
+
+static struct platform_device ard_android_button_device = {
+	.name		= "gpio-keys",
+	.id		= -1,
+	.num_resources  = 0,
+	.dev		= {
+		.platform_data = &ard_android_button_data,
+	}
+};
+
+/* Android Recovery Function */
+static void __init imx6q_add_android_device_buttons(void)
+{
+	platform_device_register(&ard_android_button_device);
+}
+
+
+
+
 
 static int plt_sd_pad_change(unsigned int index, int clock)
 {
@@ -1022,6 +1075,9 @@ static void __init mx6_board_init(void)
 	pcie_3v3_reset();
 
 	imx6q_add_busfreq();
+
+	/* Add Android Recovery GPIOs */	
+	imx6q_add_android_device_buttons();
 
 	/* Add PCIe RC interface support */
 	imx6q_add_pcie(&mx6_ar6mx_pcie_data);
