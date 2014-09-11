@@ -126,9 +126,13 @@
 #define _COMPONENT		ANATOP_THERMAL_COMPONENT
 #define KELVIN_OFFSET			273
 #define POLLING_FREQ			2000 /* 2s */
+/* JTS - iMX6 Quad chip is rated 105C.  Freescale says the onboard sensor
+   can be +/-10C.  So we'll aggressively set the throttle point to 95C.
+   Assuming a 10C error this will keep the IC under 105C unless throttling
+   doesn't work.  In that case shut down at 100C, which could be 110C actual. */
 #define TEMP_CRITICAL			373 /* 100 C*/
-#define TEMP_HOT				363 /* 90 C*/
-#define TEMP_ACTIVE				353 /* 80 C*/
+#define TEMP_HOT				368 /* 95 C - changed by JTS */
+#define TEMP_ACTIVE				363 /* 90 C - changed by JTS */
 #define MEASURE_FREQ			3276  /* 3276 RTC clocks delay, 100ms */
 #define KELVIN_TO_CEL(t, off) (((t) - (off)))
 #define CEL_TO_KELVIN(t, off) (((t) + (off)))
