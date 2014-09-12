@@ -365,7 +365,7 @@ static SIMPLE_DEV_PM_OPS(egalax_ts_pm_ops, egalax_ts_suspend, egalax_ts_resume);
 static struct i2c_driver egalax_ts_driver = {
 	.driver = {
 		.name = "egalax_ts",
-#ifndef CONFIG_HAS_EARLYSUSPEND
+#if 0
 		.pm	= &egalax_ts_pm_ops,
 #endif
 	},
