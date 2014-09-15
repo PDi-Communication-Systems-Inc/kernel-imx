@@ -123,7 +123,7 @@
 #define AR6MX_ANDROID_VOLUP	      IMX_GPIO_NR(2, 1)
 #define AR6MX_ANDROID_VOLDOWN	      IMX_GPIO_NR(2, 2)
 #define AR6MX_ANDROID_ARROWLEFT	      IMX_GPIO_NR(2, 3)
-
+#define AR6MX_ANDROID_PWRSTATE        IMX_GPIO_NR(2, 6)
 
 extern char *gp_reg_id;
 extern char *soc_reg_id;
@@ -748,9 +748,9 @@ static void ar6mx_suspend_enter(void)
 {
         /* suspend preparation */
         printk(KERN_DEBUG "sabreauto_suspend_enter(): set pwr (ctrl, status) low\n");
-        gpio_set_value(AR6MX_TTL_DO0, 0);
+        gpio_set_value(AR6MX_ANDROID_PWRSTATE, 0);
         mdelay(1);
-        gpio_set_value(AR6MX_TTL_DO1, 0);
+        gpio_set_value(AR6MX_ANDROID_PWRSTATE, 0);
         mdelay(1);
 }
 
@@ -758,9 +758,9 @@ static void ar6mx_suspend_exit(void)
 {
 	/* resmue resore */
         printk(KERN_DEBUG "sabreauto_suspend_exit(): set pwr (ctrl, status) high \n");
-        gpio_set_value(AR6MX_TTL_DO0, 1);
+        gpio_set_value(AR6MX_ANDROID_PWRSTATE, 1);
         mdelay(1);
-        gpio_set_value(AR6MX_TTL_DO1, 1);
+        gpio_set_value(AR6MX_ANDROID_PWRSTATE, 1);
         mdelay(1);
 
         /* Try to recover PCie bus to prevent please wait message
@@ -953,6 +953,12 @@ static void board_rev(void)
 		gpio_get_value(AR6MX_VER_B1) << 1 |	gpio_get_value(AR6MX_VER_B0);
 }
 
+static __init void ar6mx_init_external_gpios(void) {
+        gpio_request(AR6MX_ANDROID_PWRSTATE, "android_power_state");
+        gpio_direction_output(AR6MX_ANDROID_PWRSTATE, 1);
+        gpio_export(AR6MX_ANDROID_PWRSTATE, true);
+}
+
 /*!
  * Board specific initialization.
  */
@@ -1075,6 +1081,9 @@ static void __init mx6_board_init(void)
 	pcie_3v3_reset();
 
 	imx6q_add_busfreq();
+
+	/* Connect the power mgmt state gpio mrobbeloth, PDi*/
+	ar6mx_init_external_gpios();
 
 	/* Add Android Recovery GPIOs */	
 	imx6q_add_android_device_buttons();
