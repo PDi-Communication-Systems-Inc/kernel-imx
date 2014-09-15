@@ -355,9 +355,10 @@ static int egalax_ts_resume(struct device *dev)
 	struct egalax_ts *data = i2c_get_clientdata(client);
 
 	/* If not wake up, don't needs resume. */
-	if (data->touch_no_wake)
-		return 0;
-	return egalax_wake_up_device(client);
+	/* if (data->touch_no_wake)
+		return 0; */
+	/* always wake device on resume */
+	return egalax_wake_up_device(client); 
 }
 #endif
 
