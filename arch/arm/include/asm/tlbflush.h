@@ -327,7 +327,6 @@ static inline void local_flush_tlb_all(void)
 	const int zero = 0;
 	const unsigned int __tlb_flag = __cpu_tlb_flags;
 
-	printk(KERN_DEBUG "In local_flush_tlb_all\n");
 	if (tlb_flag(TLB_WB))
 		dsb();
 
