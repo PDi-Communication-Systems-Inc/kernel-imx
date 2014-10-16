@@ -118,12 +118,13 @@
 #define AR6MX_TTL_DO1       IMX_GPIO_NR(2, 7)
 
 
-/* Android Recovery GPIO */
-#define AR6MX_ANDROID_POWER	      IMX_GPIO_NR(2, 0)
-#define AR6MX_ANDROID_VOLUP	      IMX_GPIO_NR(2, 1)
-#define AR6MX_ANDROID_VOLDOWN	      IMX_GPIO_NR(2, 2)
-#define AR6MX_ANDROID_ARROWLEFT	      IMX_GPIO_NR(2, 3)
-#define AR6MX_ANDROID_PWRSTATE        IMX_GPIO_NR(2, 6)
+/* PDi defined GPIO */
+#define AR6MX_TV_POWER_REQ	      AR6MX_TTL_DI0
+#define AR6MX_TV_ARROW_UP	      AR6MX_TTL_DI1
+#define AR6MX_TV_ARROW_DOWN	      AR6MX_TTL_DI2
+#define AR6MX_TV_ARROW_LEFT	      AR6MX_TTL_DI3
+#define AR6MX_ANDROID_PWRSTATE    AR6MX_TTL_DO0
+
 
 extern char *gp_reg_id;
 extern char *soc_reg_id;
@@ -181,10 +182,10 @@ enum sd_pad_mode {
 
 /* Android Recovery structs */
 static struct gpio_keys_button ard_buttons[] = {
-	GPIO_BUTTON(AR6MX_ANDROID_POWER,    KEY_POWER,       1, "power",        1),
-	GPIO_BUTTON(AR6MX_ANDROID_VOLUP,   KEY_VOLUMEUP,   1, "volume-up",   0),
-	GPIO_BUTTON(AR6MX_ANDROID_VOLDOWN, KEY_VOLUMEDOWN, 1, "volume-down", 0),
-	GPIO_BUTTON(AR6MX_ANDROID_ARROWLEFT, KEY_LEFT, 1, "arrow-left", 0),
+	GPIO_BUTTON(AR6MX_TV_POWER_REQ,  KEY_POWER, 1, "power", 1),
+	GPIO_BUTTON(AR6MX_TV_ARROW_UP,   KEY_F16,   1, "F16",   0),  // "arrow up" key used for recovery "navigate up"
+	GPIO_BUTTON(AR6MX_TV_ARROW_DOWN, KEY_F17,   1, "F17",   0),  // "arrow down" key used for recovery "navigate down"
+	GPIO_BUTTON(AR6MX_TV_ARROW_LEFT, KEY_F18,   1, "F18",   0),  // "arrow left" key used for recovery "select"
 };
 
 static struct gpio_keys_platform_data ard_android_button_data = {
@@ -750,16 +751,12 @@ static void ar6mx_suspend_enter(void)
         printk(KERN_DEBUG "sabreauto_suspend_enter(): set pwr (ctrl, status) low\n");
         gpio_set_value(AR6MX_ANDROID_PWRSTATE, 0);
         mdelay(1);
-        gpio_set_value(AR6MX_ANDROID_PWRSTATE, 0);
-        mdelay(1);
 }
 
 static void ar6mx_suspend_exit(void)
 {
 	/* resmue resore */
         printk(KERN_DEBUG "sabreauto_suspend_exit(): set pwr (ctrl, status) high \n");
-        gpio_set_value(AR6MX_ANDROID_PWRSTATE, 1);
-        mdelay(1);
         gpio_set_value(AR6MX_ANDROID_PWRSTATE, 1);
         mdelay(1);
 
@@ -1112,8 +1109,8 @@ static void __init mx6_timer_init(void)
 #endif
 	mx6_clocks_init(32768, 24000000, 0, 0);
 
-	uart_clk = clk_get_sys("imx-uart.3", NULL);
-	early_console_setup(UART4_BASE_ADDR, uart_clk);
+	uart_clk = clk_get_sys("imx-uart.0", NULL);
+	early_console_setup(UART1_BASE_ADDR, uart_clk);
 }
 
 static struct sys_timer mxc_timer = {
