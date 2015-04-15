@@ -292,34 +292,49 @@ mx6q_ar6mx_anatop_thermal_data __initconst = {
 	.name = "anatop_thermal",
 };
 
-static const struct imxuart_platform_data ar6mx_uart1_data = {
-	.flags = IMXUART_SDMA,
+static const struct imxuart_platform_data ar6mx_uart2_data = {
+	.flags = IMXUART_HAVE_RTSCTS | IMXUART_SDMA,
 	.dma_req_tx = MX6Q_DMA_REQ_UART2_TX,
 	.dma_req_rx = MX6Q_DMA_REQ_UART2_RX,
 };
 
-static const struct imxuart_platform_data ar6mx_uart1_rev03_data = {
-	.flags = IMXUART_USE_DCEDTE | IMXUART_SDMA,
-	.dma_req_tx = MX6Q_DMA_REQ_UART2_TX,
-	.dma_req_rx = MX6Q_DMA_REQ_UART2_RX,
+static const struct imxuart_platform_data ar6mx_uart1_data = {
+        .flags = IMXUART_HAVE_RTSCTS | IMXUART_USE_DCEDTE | IMXUART_SDMA,
+        .dma_req_tx = MX6Q_DMA_REQ_UART1_TX,
+        .dma_req_rx = MX6Q_DMA_REQ_UART1_RX,
 };
 
 static inline void mx6q_ar6mx_init_uart(void)
 {
-	imx6q_add_imx_uart(0, NULL);
+	/* BCM 0.3 board, no version info so all four bits float high */
 	if (0xF == board_id) {
-		if (cpu_is_mx6q())
+		/* Possible quad core 0.3 board, only a few prototypes 
+                   existed and they should have been all retired*/
+		if (cpu_is_mx6q()) {
+			/* quad 0.3 pad setup */
 			mxc_iomux_v3_setup_multiple_pads(mx6q_ar6mx_uart2_rev03_pads, \
 				ARRAY_SIZE(mx6q_ar6mx_uart2_rev03_pads));
-		else
+			mxc_iomux_v3_setup_multiple_pads(mx6q_ar6mx_uart1_rev03_pads, \
+				ARRAY_SIZE(mx6q_ar6mx_uart1_rev03_pads));
+		}
+		else {
+			/* solo 0.3 pad setup */
+			mxc_iomux_v3_setup_multiple_pads(mx6dl_ar6mx_uart1_rev03_pads, \
+				ARRAY_SIZE(mx6dl_ar6mx_uart1_rev03_pads));
 			mxc_iomux_v3_setup_multiple_pads(mx6dl_ar6mx_uart2_rev03_pads, \
 				ARRAY_SIZE(mx6dl_ar6mx_uart2_rev03_pads));
+		}
 
-		imx6q_add_imx_uart(1, &ar6mx_uart1_rev03_data);
-	} else
-		imx6q_add_imx_uart(1, &ar6mx_uart1_data);
-	imx6q_add_imx_uart(2, NULL);
-	imx6q_add_imx_uart(3, NULL);
+		/* Note the difference in using the rev03 struct */
+		imx6q_add_imx_uart(0, &ar6mx_uart1_data);
+		imx6q_add_imx_uart(1, &ar6mx_uart2_data);
+        	imx6q_add_imx_uart(2, NULL);
+	} else {
+             /* BCM 1.0 or later board */
+             imx6q_add_imx_uart(0, &ar6mx_uart1_data);
+	     imx6q_add_imx_uart(1, &ar6mx_uart2_data);
+             imx6q_add_imx_uart(2, NULL);
+ 	} 	
 }
 
 static inline void imx6q_ar6mx_init_ldb(void)

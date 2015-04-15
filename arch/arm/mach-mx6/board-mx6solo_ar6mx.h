@@ -263,3 +263,8 @@ static iomux_v3_cfg_t mx6dl_ar6mx_uart2_rev03_pads[] = {
 	MX6DL_PAD_EIM_D26__UART2_RXD,
 	MX6DL_PAD_EIM_D27__UART2_TXD,
 };
+
+static iomux_v3_cfg_t mx6dl_ar6mx_uart1_rev03_pads[] ={
+	MX6Q_PAD_SD3_DAT7__UART1_RXD,
+	MX6Q_PAD_SD3_DAT6__UART1_TXD,
+};
