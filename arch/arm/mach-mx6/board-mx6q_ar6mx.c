@@ -298,6 +298,12 @@ static const struct imxuart_platform_data ar6mx_uart2_data = {
 	.dma_req_rx = MX6Q_DMA_REQ_UART2_RX,
 };
 
+static const struct imxuart_platform_data ar6mx_uart2_alt_data = {
+	.flags = IMXUART_USE_DCEDTE | IMXUART_SDMA,
+	.dma_req_tx = MX6Q_DMA_REQ_UART2_TX,
+	.dma_req_rx = MX6Q_DMA_REQ_UART2_RX,
+};
+
 static const struct imxuart_platform_data ar6mx_uart1_data = {
         .flags = IMXUART_HAVE_RTSCTS | IMXUART_USE_DCEDTE | IMXUART_SDMA,
         .dma_req_tx = MX6Q_DMA_REQ_UART1_TX,
@@ -307,7 +313,6 @@ static const struct imxuart_platform_data ar6mx_uart1_data = {
 static inline void mx6q_ar6mx_init_uart(void)
 {
 	/* BCM 0.3 board, no version info so all four bits float high */
-	pr_debug("In mx6q_ar6mx_init_uart where board_id is: %d\n", board_id);
 	if (0xF == board_id) {
 		/* Possible quad core 0.3 board, only a few prototypes 
                    existed and they should have been all retired*/
@@ -315,20 +320,20 @@ static inline void mx6q_ar6mx_init_uart(void)
 			/* quad 0.3 pad setup */
 			mxc_iomux_v3_setup_multiple_pads(mx6q_ar6mx_uart2_rev03_pads, \
 				ARRAY_SIZE(mx6q_ar6mx_uart2_rev03_pads));
-			mxc_iomux_v3_setup_multiple_pads(mx6q_ar6mx_uart1_rev03_pads, \
-				ARRAY_SIZE(mx6q_ar6mx_uart1_rev03_pads));
+			/* mxc_iomux_v3_setup_multiple_pads(mx6q_ar6mx_uart1_rev03_pads, \
+				ARRAY_SIZE(mx6q_ar6mx_uart1_rev03_pads)); */
 		}
 		else {
 			/* solo 0.3 pad setup */
-			mxc_iomux_v3_setup_multiple_pads(mx6dl_ar6mx_uart1_rev03_pads, \
-				ARRAY_SIZE(mx6dl_ar6mx_uart1_rev03_pads));
+			/* mxc_iomux_v3_setup_multiple_pads(mx6dl_ar6mx_uart1_rev03_pads, \
+				ARRAY_SIZE(mx6dl_ar6mx_uart1_rev03_pads)); */
 			mxc_iomux_v3_setup_multiple_pads(mx6dl_ar6mx_uart2_rev03_pads, \
 				ARRAY_SIZE(mx6dl_ar6mx_uart2_rev03_pads));
 		}
 
 		/* Note the difference in using the rev03 struct */
 		imx6q_add_imx_uart(0, NULL);
-		imx6q_add_imx_uart(1, &ar6mx_uart2_data);
+		imx6q_add_imx_uart(1, &ar6mx_uart2_alt_data);
         	imx6q_add_imx_uart(2, NULL);
 	} else {
              /* BCM 1.0 or later board */
@@ -336,7 +341,6 @@ static inline void mx6q_ar6mx_init_uart(void)
 	     imx6q_add_imx_uart(1, &ar6mx_uart2_data);
              imx6q_add_imx_uart(2, NULL);
  	} 	
-	pr_debug("Leaving mx6q_ar6mx_init_uart\n");
 }
 
 static inline void imx6q_ar6mx_init_ldb(void)
@@ -965,7 +969,6 @@ static void board_rev(void)
 		board_id = gpio_get_value(AR6MX_VER_B3) << 3 | \
 		gpio_get_value(AR6MX_VER_B2) << 2 | \
 		gpio_get_value(AR6MX_VER_B1) << 1 |	gpio_get_value(AR6MX_VER_B0);
-	pr_debug("board_id=%d", board_id);
 }
 
 static __init void ar6mx_init_external_gpios(void) {
