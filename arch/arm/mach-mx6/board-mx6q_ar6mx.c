@@ -33,6 +33,7 @@
 #include <linux/mtd/physmap.h>
 #include <linux/i2c.h>
 #include <linux/i2c/pca953x.h>
+#include <linux/platform_data/atmel_mxt_ts.h>
 #include <linux/ata.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
@@ -117,6 +118,9 @@
 #define AR6MX_TTL_DO0	    IMX_GPIO_NR(2, 6)
 #define AR6MX_TTL_DO1       IMX_GPIO_NR(2, 7)
 
+/* For I2C Touchscreen mrobbeloth PDi*/
+#define AR6MX_CAP_TCH_INT0       IMX_GPIO_NR(6, 8)
+#define ATMEL_MXT_I2C_ADDR 0x4A
 
 /* PDi defined GPIO */
 #define AR6MX_TV_POWER_REQ	      AR6MX_TTL_DI0
@@ -493,6 +497,10 @@ static struct platform_device physmap_flash_device = {
 	.num_resources	= 1,
 };
 
+static struct mxt_platform_data mxt_data = {
+        .irqflags = IRQF_TRIGGER_FALLING,
+};
+
 static struct imxi2c_platform_data mx6q_ar6mx_i2c1_data = {
 	.bitrate	= 100000,
 };
@@ -509,6 +517,12 @@ static struct i2c_board_info mxc_i2c1_board_info[] __initdata = {
 	{
 		I2C_BOARD_INFO("mxc_hdmi_i2c", 0x50),
 	},
+
+        {    
+                I2C_BOARD_INFO("atmel_mxt_ts", ATMEL_MXT_I2C_ADDR),
+                .irq  = gpio_to_irq(AR6MX_CAP_TCH_INT0),
+                .platform_data = &mxt_data,
+        },   
 };
 
 static struct i2c_board_info mxc_i2c2_board_info[] __initdata = {
