@@ -98,6 +98,7 @@ static iomux_v3_cfg_t mx6q_ar6mx_pads[] = {
 
 	/* GPIO6 */
 	MX6Q_PAD_CSI0_DAT14__GPIO_6_0,    /* CSI_PWN    */
+	MX6Q_PAD_NANDF_ALE__GPIO_6_8,     /* CAP_TCH_INT0 */
 
 	/* GPIO7 */
 	MX6Q_PAD_SD3_DAT5__GPIO_7_0,      /* SD3_CD_B   */
