@@ -339,11 +339,13 @@ static inline void mx6q_ar6mx_init_uart(void)
 		imx6q_add_imx_uart(0, NULL);
 		imx6q_add_imx_uart(1, &ar6mx_uart2_alt_data);
         	imx6q_add_imx_uart(2, NULL);
+		imx6q_add_imx_uart(3, NULL);
 	} else {
              /* BCM 1.0 or later board */
              imx6q_add_imx_uart(0, NULL);
 	     imx6q_add_imx_uart(1, &ar6mx_uart2_data);
              imx6q_add_imx_uart(2, NULL);
+	     imx6q_add_imx_uart(3, NULL);
  	} 	
 }
 
