@@ -316,7 +316,8 @@ static const struct imxuart_platform_data ar6mx_uart1_data = {
 
 static inline void mx6q_ar6mx_init_uart(void)
 {
-	/* BCM 0.3 board, no version info so all four bits float high */
+	/* board_id == 0x0F for BCM Rev 0.1 and Rev 0.3 boards */
+	/* board_id == 0x01 for BCM Rev 1.0 and Rev 2.0 boards */
 	if (0xF == board_id) {
 		/* Possible quad core 0.3 board, only a few prototypes 
                    existed and they should have been all retired*/
