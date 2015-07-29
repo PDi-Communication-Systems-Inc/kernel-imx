@@ -102,6 +102,7 @@ struct ldb_data {
 };
 
 static int g_ldb_mode;
+static int jeida = 0;
 static struct i2c_client *ldb_i2c_client[2];
 static u8 g_edid[2][512];
 
@@ -127,6 +128,22 @@ static struct fb_videomode ldb_modedb[] = {
 	 100, 40,
 	 30, 3,
 	 10, 2,
+	 0,
+	 FB_VMODE_NONINTERLACED,
+	 FB_MODE_IS_DETAILED,},
+	{
+	 "LDB-LQ101", 60, 1280, 800, 15433,
+	 20, 20,
+	 5, 5,
+	 10, 2,
+	 0,
+	 FB_VMODE_NONINTERLACED,
+	 FB_MODE_IS_DETAILED,},
+	{
+	 "LDB-TCG101", 60, 1280, 800, 14065,
+	 40, 40,
+	 10, 3,
+	 80, 10,
 	 0,
 	 FB_VMODE_NONINTERLACED,
 	 FB_MODE_IS_DETAILED,},
@@ -201,6 +218,15 @@ static int __init ldb_setup(char *options)
 	return 1;
 }
 __setup("ldb=", ldb_setup);
+
+static int __init jeida_setup(char *options)
+{
+	if (!strcmp(options, "1"))
+		jeida = 1;
+
+	return 1;
+}
+__setup("jeida=", jeida_setup);
 
 static int find_ldb_setting(struct ldb_data *ldb, struct fb_info *fbi)
 {
@@ -466,6 +492,8 @@ static int ldb_disp_init(struct mxc_dispdrv_handle *disp,
 		/* TODO: now only use SPWG data mapping for both channel */
 		reg &= ~(LDB_BIT_MAP_CH0_MASK | LDB_BIT_MAP_CH1_MASK);
 		reg |= LDB_BIT_MAP_CH0_SPWG | LDB_BIT_MAP_CH1_SPWG;
+		if (jeida == 1)
+			reg |= LDB_BIT_MAP_CH0_JEIDA | LDB_BIT_MAP_CH1_JEIDA;
 
 		/* channel mode setting */
 		reg &= ~(LDB_CH0_MODE_MASK | LDB_CH1_MODE_MASK);
