@@ -30,6 +30,8 @@
 // {JTS 7/10/2013 - from board-mx6q_sabreauto.c
 #define AR6MX_TTL_DO0	          IMX_GPIO_NR(2, 6)
 #define AR6MX_TTL_DO1             IMX_GPIO_NR(2, 7)
+//Doge 8/25/2015 add LCD backlight control
+#define AR6MX_BL0_EN		  IMX_GPIO_NR(1, 13)
 // JTS}
 
 //Start : PDi - USB power maps - from board-mx6q_sabreauto.c
@@ -121,6 +123,8 @@ static void early_suspend(struct work_struct *work)
 	gpio_set_value(AR6MX_TTL_DO0, 0);	// JTS - 7/9/2013 drop DO0 low for sleep
 	mdelay(1);
 	gpio_set_value(AR6MX_TTL_DO1, 0);   // JTS - 7/9/2013 drop DO1 low for sleep
+	mdelay(1);
+	gpio_set_value(AR6MX_BL0_EN, 0);	// Doge - 8/25/2015 bring B/L Off
 
 	mutex_lock(&early_suspend_lock);
 	spin_lock_irqsave(&state_lock, irqflags);
@@ -204,6 +208,8 @@ static void late_resume(struct work_struct *work)
 	gpio_set_value(AR6MX_TTL_DO0, 1);	// JTS - 7/9/2013 bring DO0 high for wake 
 	mdelay(1);
 	gpio_set_value(AR6MX_TTL_DO1, 1);	// JTS - 7/9/2013 bring DO1 high for wake
+	mdelay(1);
+	gpio_set_value(AR6MX_BL0_EN, 1);	// Doge - 8/25/2015 bring B/L On
  
 	if (debug_mask & DEBUG_SUSPEND)
 		pr_info("late_resume: done\n");
