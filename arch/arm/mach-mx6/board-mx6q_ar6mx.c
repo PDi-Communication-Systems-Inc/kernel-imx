@@ -124,9 +124,13 @@
 
 /* PDi defined GPIO */
 #define AR6MX_TV_POWER_REQ	      AR6MX_TTL_DI0
+#define AR6MX_AIO_POWER_REQ	      AR6MX_TTL_DI0
 #define AR6MX_TV_ARROW_UP	      AR6MX_TTL_DI1
+#define AR6MX_AIO_VOL_UP	      AR6MX_TTL_DI1
 #define AR6MX_TV_ARROW_DOWN	      AR6MX_TTL_DI2
+#define AR6MX_AIO_VOL_DOWN	      AR6MX_TTL_DI2
 #define AR6MX_TV_ARROW_LEFT	      AR6MX_TTL_DI3
+#define AR6MX_TV_OR_AIO			  AR6MX_TTL_DI5 // float high for TV/Tab, pull low for all-in-one -JTS
 #define AR6MX_ANDROID_PWRSTATE    AR6MX_TTL_DO0
 
 
@@ -173,7 +177,6 @@ enum sd_pad_mode {
 
 
 
-/* Android Recovery Defines */
 #define GPIO_BUTTON(gpio_num, ev_code, act_low, descr, wake)	\
 {								\
 	.gpio		= gpio_num,				\
@@ -184,32 +187,57 @@ enum sd_pad_mode {
 	.wakeup		= wake,					\
 }
 
-/* Android Recovery structs */
-static struct gpio_keys_button ard_buttons[] = {
+/* GPIO map for TV's and Tab's -JTS */
+static struct gpio_keys_button ard_buttons_tv[] = {
 	GPIO_BUTTON(AR6MX_TV_POWER_REQ,  KEY_POWER, 1, "power", 1),
 	GPIO_BUTTON(AR6MX_TV_ARROW_UP,   KEY_F16,   1, "F16",   0),  // "arrow up" key used for recovery "navigate up"
 	GPIO_BUTTON(AR6MX_TV_ARROW_DOWN, KEY_F17,   1, "F17",   0),  // "arrow down" key used for recovery "navigate down"
-	GPIO_BUTTON(AR6MX_TV_ARROW_LEFT, KEY_F18,   1, "F18",   0),  // "arrow left" key used for recovery "select"
+	GPIO_BUTTON(AR6MX_TV_ARROW_LEFT, KEY_F18,   1, "F18",   0)   // "arrow left" key used for recovery "select"
 };
 
-static struct gpio_keys_platform_data ard_android_button_data = {
-	.buttons	= ard_buttons,
-	.nbuttons	= ARRAY_SIZE(ard_buttons),
+/* GPIO map for all-in-one's -JTS */
+static struct gpio_keys_button ard_buttons_aio[] = {
+	GPIO_BUTTON(AR6MX_AIO_POWER_REQ, KEY_POWER, 	 1, "power",       1),
+	GPIO_BUTTON(AR6MX_AIO_VOL_UP,    KEY_VOLUMEUP,   1, "volume-up",   0),  
+	GPIO_BUTTON(AR6MX_AIO_VOL_DOWN,  KEY_VOLUMEDOWN, 1, "volume-down", 0)  
 };
 
-static struct platform_device ard_android_button_device = {
+static struct gpio_keys_platform_data ard_android_button_data_tv = {
+	.buttons	= ard_buttons_tv,
+	.nbuttons	= ARRAY_SIZE(ard_buttons_tv)
+};
+
+static struct gpio_keys_platform_data ard_android_button_data_aio = {
+	.buttons	= ard_buttons_aio,
+	.nbuttons	= ARRAY_SIZE(ard_buttons_aio)
+};
+
+static struct platform_device ard_android_button_device_tv = {
 	.name		= "gpio-keys",
 	.id		= -1,
 	.num_resources  = 0,
 	.dev		= {
-		.platform_data = &ard_android_button_data,
+		.platform_data = &ard_android_button_data_tv,
 	}
 };
 
-/* Android Recovery Function */
+static struct platform_device ard_android_button_device_aio = {
+	.name		= "gpio-keys",
+	.id		= -1,
+	.num_resources  = 0,
+	.dev		= {
+		.platform_data = &ard_android_button_data_aio,
+	}
+};
+
 static void __init imx6q_add_android_device_buttons(void)
 {
-	platform_device_register(&ard_android_button_device);
+	// Setup TV arrow keys if AR6MX_TV_OR_AIO input is floating high, or P19X volume keys if pulled low
+	if (gpio_get_value(AR6MX_TV_OR_AIO)) {
+		platform_device_register(&ard_android_button_device_tv);
+	} else {
+		platform_device_register(&ard_android_button_device_aio);
+	}
 }
 
 
