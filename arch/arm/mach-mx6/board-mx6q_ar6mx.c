@@ -813,23 +813,27 @@ static struct gpio mx6q_ar6mx_ver_gpios[] = {
 
 static void ar6mx_suspend_enter(void)
 {
-        /* suspend preparation */
-        printk(KERN_DEBUG "sabreauto_suspend_enter(): set pwr (ctrl, status) low\n");
-        gpio_set_value(AR6MX_ANDROID_PWRSTATE, 0);
-        mdelay(1);
+	/* suspend preparation */
+	/* Moved to kernel\power\earlysuspend.c  -JTS
+	printk(KERN_DEBUG "sabreauto_suspend_enter(): set pwr (ctrl, status) low\n");
+	gpio_set_value(AR6MX_ANDROID_PWRSTATE, 0);
+	mdelay(1);
+	*/
 }
 
 static void ar6mx_suspend_exit(void)
 {
 	/* resmue resore */
-        printk(KERN_DEBUG "sabreauto_suspend_exit(): set pwr (ctrl, status) high \n");
-        gpio_set_value(AR6MX_ANDROID_PWRSTATE, 1);
-        mdelay(1);
+	/* Moved to kernel\power\earlysuspend.c  -JTS
+	printk(KERN_DEBUG "sabreauto_suspend_exit(): set pwr (ctrl, status) high \n");
+	gpio_set_value(AR6MX_ANDROID_PWRSTATE, 1);
+	mdelay(1);
+	*/
 
-        /* Try to recover PCie bus to prevent please wait message
-           pdi - mrobbeloth */
-        printk(KERN_DEBUG "sabreauto_suspend_exit(): resetting mPCIe bus\n");
-        pcie_3v3_reset();
+	/* Try to recover PCie bus to prevent please wait message
+	   pdi - mrobbeloth */
+	printk(KERN_DEBUG "sabreauto_suspend_exit(): resetting mPCIe bus\n");
+	pcie_3v3_reset();
 }
 static const struct pm_platform_data mx6q_ar6mx_pm_data __initconst = {
 	.name		= "imx_pm",
@@ -1022,7 +1026,7 @@ static __init void ar6mx_init_external_gpios(void) {
         gpio_export(AR6MX_ANDROID_PWRSTATE, true);
         // Doge 8/25/2015 export BL0_EN to user space
        	gpio_request(AR6MX_BL0_EN, "bl0_en");       
-	gpio_direction_output(AR6MX_BL0_EN, 1);
+		gpio_direction_output(AR6MX_BL0_EN, 1);
         gpio_export(AR6MX_BL0_EN, true);
 }
 
