@@ -995,7 +995,7 @@ static __init void ar6mx_init_external_gpios(void) {
         // Doge 8/25/2015 export BL0_EN to user space
        	gpio_request(AR6MX_BL0_EN, "bl0_en");       
 	gpio_direction_output(AR6MX_BL0_EN, 1);
-        gpio_export(AR6MX_ANDROID_PWRSTATE, true);
+        gpio_export(AR6MX_BL0_EN, true);
 }
 
 /*!
