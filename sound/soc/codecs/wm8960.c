@@ -191,10 +191,10 @@ SOC_ENUM("DAC Polarity", wm8960_enum[2]),
 SOC_SINGLE_BOOL_EXT("DAC Deemphasis Switch", 0,
 		    wm8960_get_deemph, wm8960_put_deemph),
 
-SOC_ENUM("3D Filter Upper Cut-Off", wm8960_enum[2]),
-SOC_ENUM("3D Filter Lower Cut-Off", wm8960_enum[3]),
-SOC_SINGLE("3D Volume", WM8960_3D, 1, 15, 0),
-SOC_SINGLE("3D Switch", WM8960_3D, 0, 1, 0),
+SOC_ENUM("_3D Filter Upper Cut-Off", wm8960_enum[2]),	// string must not start with a numeric digit -JTS
+SOC_ENUM("_3D Filter Lower Cut-Off", wm8960_enum[3]),
+SOC_SINGLE("_3D Volume", WM8960_3D, 1, 15, 0),
+SOC_SINGLE("_3D Switch", WM8960_3D, 0, 1, 0),
 
 SOC_ENUM("ALC Function", wm8960_enum[4]),
 SOC_SINGLE("ALC Max Gain", WM8960_ALC1, 4, 7, 0),
