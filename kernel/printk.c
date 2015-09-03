@@ -1584,8 +1584,8 @@ void register_console(struct console *newcon)
 		/* we need to iterate through twice, to make sure we print
 		 * everything out, before we unregister the console(s)
 		 */
-		printk(KERN_INFO "console [%s%d] enabled, bootconsole disabled\n",
-			newcon->name, newcon->index);
+		printk(KERN_INFO "console [%s%d] enabled, bootconsole [%s%d] disabled\n",
+			newcon->name, newcon->index, bcon->name, bcon->index);
 		for_each_console(bcon)
 			if (bcon->flags & CON_BOOT)
 				unregister_console(bcon);
