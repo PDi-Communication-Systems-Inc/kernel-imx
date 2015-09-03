@@ -302,10 +302,10 @@ static const struct imxuart_platform_data ar6mx_uart2_data = {
 	.dma_req_rx = MX6Q_DMA_REQ_UART2_RX,
 };
 
-static const struct imxuart_platform_data ar6mx_uart2_alt_data = {
+static const struct imxuart_platform_data ar6mx_uart1_alt_data = {
 	.flags = IMXUART_USE_DCEDTE | IMXUART_SDMA,
-	.dma_req_tx = MX6Q_DMA_REQ_UART2_TX,
-	.dma_req_rx = MX6Q_DMA_REQ_UART2_RX,
+	.dma_req_tx = MX6Q_DMA_REQ_UART1_TX,
+	.dma_req_rx = MX6Q_DMA_REQ_UART1_RX,
 };
 
 static const struct imxuart_platform_data ar6mx_uart1_data = {
@@ -332,13 +332,13 @@ static inline void mx6q_ar6mx_init_uart(void)
 			/* solo 0.3 pad setup */
 			/* mxc_iomux_v3_setup_multiple_pads(mx6dl_ar6mx_uart1_rev03_pads, \
 				ARRAY_SIZE(mx6dl_ar6mx_uart1_rev03_pads)); */
-			mxc_iomux_v3_setup_multiple_pads(mx6dl_ar6mx_uart2_rev03_pads, \
-				ARRAY_SIZE(mx6dl_ar6mx_uart2_rev03_pads));
+			mxc_iomux_v3_setup_multiple_pads(mx6dl_ar6mx_uart1_rev03_pads, \
+				ARRAY_SIZE(mx6dl_ar6mx_uart1_rev03_pads));
 		}
 
 		/* Note the difference in using the rev03 struct */
-		imx6q_add_imx_uart(0, NULL);
-		imx6q_add_imx_uart(1, &ar6mx_uart2_alt_data);
+		imx6q_add_imx_uart(0, &ar6mx_uart1_alt_data);
+		imx6q_add_imx_uart(1, NULL);
         	imx6q_add_imx_uart(2, NULL);
 		imx6q_add_imx_uart(3, NULL);
 	} else {
