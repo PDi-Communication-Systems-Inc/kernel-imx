@@ -85,18 +85,19 @@
 
 #define AR6MX_SD3_CD		IMX_GPIO_NR(7, 0)
 #define AR6MX_SD3_WP		IMX_GPIO_NR(7, 1)
-#define AR6MX_ECSPI3_CS0		IMX_GPIO_NR(4, 24)
-#define AR6MX_USB_V1_PWR	  IMX_GPIO_NR(5, 13)
+#define AR6MX_ECSPI3_CS0	IMX_GPIO_NR(4, 24)
+#define AR6MX_USB_V1_PWR	IMX_GPIO_NR(5, 13)
 #define AR6MX_USB_V2_PWR    IMX_GPIO_NR(5, 14)
-#define AR6MX_STATUS_LED	  IMX_GPIO_NR(1, 5)
+#define AR6MX_STATUS_LED	IMX_GPIO_NR(1, 4)
+#define AR6MX_SATA_LED		IMX_GPIO_NR(1, 5)
 #define AR6MX_LVDS0_PWR     IMX_GPIO_NR(1, 11)
 #define AR6MX_LVDS1_PWR     IMX_GPIO_NR(1, 10)
 #define AR6MX_BL0_PWR       IMX_GPIO_NR(1, 15)
 #define AR6MX_BL1_PWR       IMX_GPIO_NR(1, 14)
 #define AR6MX_BL0_EN        IMX_GPIO_NR(1, 13)
 #define AR6MX_BL1_EN        IMX_GPIO_NR(1, 12)
-#define AR6MX_SPK_DET	      IMX_GPIO_NR(7, 8)
-#define AR6MX_MIC_DET	      IMX_GPIO_NR(1, 9)
+#define AR6MX_SPK_DET	    IMX_GPIO_NR(7, 8)
+#define AR6MX_MIC_DET	    IMX_GPIO_NR(1, 9)
 
 #define AR6MX_PCIE_RST_B    IMX_GPIO_NR(7, 12)
 
@@ -348,8 +349,9 @@ static inline void mx6q_ar6mx_init_uart(void)
 	/* board_id == 0x01 for BCM Rev 1.0 and Rev 2.0 boards */
 	if (0xF == board_id) {
 		/* Possible quad core 0.3 board, only a few prototypes 
-                   existed and they should have been all retired*/
+            existed and they should have been all retired*/
 		if (cpu_is_mx6q()) {
+			printk(KERN_INFO "Configuring UARTs for quad core v0.1 & v0.3 board.");
 			/* quad 0.3 pad setup */
 			mxc_iomux_v3_setup_multiple_pads(mx6q_ar6mx_uart2_rev03_pads, \
 				ARRAY_SIZE(mx6q_ar6mx_uart2_rev03_pads));
@@ -357,6 +359,7 @@ static inline void mx6q_ar6mx_init_uart(void)
 				ARRAY_SIZE(mx6q_ar6mx_uart1_rev03_pads)); */
 		}
 		else {
+			printk(KERN_INFO "Configuring UARTs for solo core v0.1 & v0.3 board.");
 			/* solo 0.3 pad setup */
 			/* mxc_iomux_v3_setup_multiple_pads(mx6dl_ar6mx_uart1_rev03_pads, \
 				ARRAY_SIZE(mx6dl_ar6mx_uart1_rev03_pads)); */
@@ -367,14 +370,15 @@ static inline void mx6q_ar6mx_init_uart(void)
 		/* Note the difference in using the rev03 struct */
 		imx6q_add_imx_uart(0, &ar6mx_uart1_alt_data);
 		imx6q_add_imx_uart(1, NULL);
-        	imx6q_add_imx_uart(2, NULL);
+        imx6q_add_imx_uart(2, NULL);
 		imx6q_add_imx_uart(3, NULL);
 	} else {
-             /* BCM 1.0 or later board */
-             imx6q_add_imx_uart(0, NULL);
-	     imx6q_add_imx_uart(1, &ar6mx_uart2_data);
-             imx6q_add_imx_uart(2, NULL);
-	     imx6q_add_imx_uart(3, NULL);
+        /* BCM 1.0 or later board */
+		printk(KERN_INFO "Configuring UARTs for quad core v1.0+ board.");
+        imx6q_add_imx_uart(0, NULL);
+	    imx6q_add_imx_uart(1, &ar6mx_uart2_data);
+        imx6q_add_imx_uart(2, NULL);
+	    imx6q_add_imx_uart(3, NULL);
  	} 	
 }
 
@@ -814,7 +818,7 @@ static struct gpio mx6q_ar6mx_ver_gpios[] = {
 static void ar6mx_suspend_enter(void)
 {
 	/* suspend preparation */
-	/* Moved to kernel\power\earlysuspend.c  -JTS
+	/* Moved to kernel/power/earlysuspend.c  -JTS
 	printk(KERN_DEBUG "sabreauto_suspend_enter(): set pwr (ctrl, status) low\n");
 	gpio_set_value(AR6MX_ANDROID_PWRSTATE, 0);
 	mdelay(1);
@@ -824,7 +828,7 @@ static void ar6mx_suspend_enter(void)
 static void ar6mx_suspend_exit(void)
 {
 	/* resmue resore */
-	/* Moved to kernel\power\earlysuspend.c  -JTS
+	/* Moved to kernel/power/earlysuspend.c  -JTS
 	printk(KERN_DEBUG "sabreauto_suspend_exit(): set pwr (ctrl, status) high \n");
 	gpio_set_value(AR6MX_ANDROID_PWRSTATE, 1);
 	mdelay(1);
@@ -1028,6 +1032,14 @@ static __init void ar6mx_init_external_gpios(void) {
        	gpio_request(AR6MX_BL0_EN, "bl0_en");       
 		gpio_direction_output(AR6MX_BL0_EN, 1);
         gpio_export(AR6MX_BL0_EN, true);
+		// Export the green LED to user space and turn it off -JTS
+		gpio_request(AR6MX_SATA_LED, "sata_led");       
+		gpio_direction_output(AR6MX_SATA_LED, 0);
+        gpio_export(AR6MX_SATA_LED, true);
+		// Export the amber LED to user space and turn if off -JTS
+		gpio_request(AR6MX_STATUS_LED, "status_led");       
+		gpio_direction_output(AR6MX_STATUS_LED, 0);
+        gpio_export(AR6MX_STATUS_LED, true);
 }
 
 /*!
