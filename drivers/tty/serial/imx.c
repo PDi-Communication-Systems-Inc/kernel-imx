@@ -494,7 +494,7 @@ static void dma_tx_work(struct work_struct *w)
 				sport->dma_tx_nents, DMA_TO_DEVICE, 0);
 		if (!desc) {
 			pr_err("We cannot prepare for the TX slave dma!\n");
-			return;
+			goto err_out;
 		}
 		desc->callback = dma_tx_callback;
 		desc->callback_param = sport;
