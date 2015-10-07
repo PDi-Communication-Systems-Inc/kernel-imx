@@ -165,6 +165,8 @@ gckKERNEL_Construct(
     kernel->dvfs         = gcvNULL;
 #endif
 
+    kernel->vidmemMutex  = gcvNULL;
+
     /* Initialize the gckKERNEL object. */
     kernel->object.type = gcvOBJ_KERNEL;
     kernel->os          = Os;
@@ -296,6 +298,9 @@ gckKERNEL_Construct(
 #if gcdANDROID_NATIVE_FENCE_SYNC
     gcmkONERROR(gckOS_CreateSyncTimeline(Os, &kernel->timeline));
 #endif
+
+    /* Construct a video memory mutex. */
+    gcmkONERROR(gckOS_GetVideoMemoryMutex(Os, &kernel->vidmemMutex));
 
     /* Return pointer to the gckKERNEL object. */
     *Kernel = kernel;
@@ -529,7 +534,7 @@ gckKERNEL_Destroy(
     return gcvSTATUS_OK;
 }
 
-#ifdef CONFIG_ANDROID_RESERVED_MEMORY_ACCOUNT
+#ifdef CONFIG_GPU_LOW_MEMORY_KILLER
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/oom.h>
@@ -565,30 +570,33 @@ static int force_contiguous_lowmem_shrink(IN gckKERNEL Kernel)
 		struct mm_struct *mm;
 		struct signal_struct *sig;
                 gcuDATABASE_INFO info;
-		int oom_adj;
+		int oom_adj, pid;
 
 		task_lock(p);
 		mm = p->mm;
 		sig = p->signal;
+                pid = p->pid;
 		if (!mm || !sig) {
 			task_unlock(p);
 			continue;
 		}
 		oom_adj = sig->oom_adj;
+		task_unlock(p);
 		if (oom_adj < min_adj) {
-			task_unlock(p);
 			continue;
 		}
 
+                read_unlock(&tasklist_lock);
+
 		tasksize = 0;
-		if (gckKERNEL_QueryProcessDB(Kernel, p->pid, gcvFALSE, gcvDB_VIDEO_MEMORY, &info) == gcvSTATUS_OK){
+		if (gckKERNEL_QueryProcessDB(Kernel, pid, gcvFALSE, gcvDB_VIDEO_MEMORY, &info) == gcvSTATUS_OK){
 			tasksize += info.counters.bytes / PAGE_SIZE;
 		}
-		if (gckKERNEL_QueryProcessDB(Kernel, p->pid, gcvFALSE, gcvDB_CONTIGUOUS, &info) == gcvSTATUS_OK){
+		if (gckKERNEL_QueryProcessDB(Kernel, pid, gcvFALSE, gcvDB_CONTIGUOUS, &info) == gcvSTATUS_OK){
 			tasksize += info.counters.bytes / PAGE_SIZE;
 		}
 
-		task_unlock(p);
+                read_lock(&tasklist_lock);
 
 		if (tasksize <= 0)
 			continue;
@@ -667,7 +675,7 @@ _AllocateMemory(
     gcmkVERIFY_ARGUMENT(Pool != gcvNULL);
     gcmkVERIFY_ARGUMENT(Bytes != 0);
 
-#ifdef CONFIG_ANDROID_RESERVED_MEMORY_ACCOUNT
+#ifdef CONFIG_GPU_LOW_MEMORY_KILLER
 _AllocateMemory_Retry:
 #endif
     /* Get initial pool. */
@@ -736,22 +744,27 @@ _AllocateMemory_Retry:
                     gctUINT32 physAddr=0;
                     gctUINT32 baseAddress = 0;
 
-                    gckOS_LockPages(Kernel->os,
-                                    node->Virtual.physical,
-                                    node->Virtual.bytes,
-                                    gcvFALSE,
-                                    &node->Virtual.logical,
-                                    &node->Virtual.pageCount);
+                    gcmkONERROR(
+                        gckOS_LockPages(Kernel->os,
+                                        node->Virtual.physical,
+                                        node->Virtual.bytes,
+                                        gcvFALSE,
+                                        &node->Virtual.logical,
+                                        &node->Virtual.pageCount));
 
                     /* Convert logical address into a physical address. */
-                    gckOS_GetPhysicalAddress(Kernel->os, node->Virtual.logical, &physAddr);
+                    gcmkONERROR(
+                        gckOS_GetPhysicalAddress(Kernel->os,
+                                                 node->Virtual.logical,
+                                                 &physAddr));
 
-                    gckOS_UnlockPages(Kernel->os,
-                                      node->Virtual.physical,
-                                      node->Virtual.bytes,
-                                      node->Virtual.logical);
+                    gcmkONERROR(
+                        gckOS_UnlockPages(Kernel->os,
+                                          node->Virtual.physical,
+                                          node->Virtual.bytes,
+                                          node->Virtual.logical));
 
-                    gckOS_GetBaseAddress(Kernel->os, &baseAddress);
+                    gcmkONERROR(gckOS_GetBaseAddress(Kernel->os, &baseAddress));
 
                     gcmkASSERT(physAddr >= baseAddress);
 
@@ -760,9 +773,9 @@ _AllocateMemory_Retry:
 
                     if((physAddr & 0x80000000) || ((physAddr + Bytes) & 0x80000000))
                     {
-                        gckOS_Print("gpu virtual memory 0x%x cannot be allocated for external use !\n", physAddr);
+                        gckOS_Print("gpu virtual memory 0x%x cannot be allocated in force contiguous request!\n", physAddr);
 
-                        gckVIDMEM_Free(node);
+                        gcmkONERROR(gckVIDMEM_Free(Kernel, node));
 
                         node = gcvNULL;
                     }
@@ -792,7 +805,8 @@ _AllocateMemory_Retry:
             if (gcmIS_SUCCESS(status))
             {
                 /* Allocate memory. */
-                status = gckVIDMEM_AllocateLinear(videoMemory,
+                status = gckVIDMEM_AllocateLinear(Kernel,
+                                                  videoMemory,
                                                   Bytes,
                                                   Alignment,
                                                   Type,
@@ -853,10 +867,18 @@ _AllocateMemory_Retry:
     if (node == gcvNULL)
     {
 
-#ifdef CONFIG_ANDROID_RESERVED_MEMORY_ACCOUNT
+#ifdef CONFIG_GPU_LOW_MEMORY_KILLER
         if(forceContiguous == gcvTRUE)
         {
-            if(force_contiguous_lowmem_shrink(Kernel) == 0)
+            int ret;
+             /* Acquire the mutex. */
+            gcmkVERIFY_OK(gckOS_AcquireMutex(Kernel->os, Kernel->vidmemMutex, gcvINFINITE));
+
+            ret = force_contiguous_lowmem_shrink(Kernel);
+
+            gcmkVERIFY_OK(gckOS_ReleaseMutex(Kernel->os, Kernel->vidmemMutex));
+
+            if(ret == 0)
             {
                  /* Sleep 1 millisecond. */
                  gckOS_Delay(gcvNULL, 1);
@@ -933,6 +955,7 @@ gckKERNEL_Dispatch(
 #if !USE_NEW_LINUX_SIGNAL
     gctSIGNAL   signal;
 #endif
+    gceSURF_TYPE type;
 
     gcmkHEADER_ARG("Kernel=0x%x FromUser=%d Interface=0x%x",
                    Kernel, FromUser, Interface);
@@ -1169,6 +1192,8 @@ gckKERNEL_Dispatch(
         break;
 
     case gcvHAL_ALLOCATE_LINEAR_VIDEO_MEMORY:
+        type = Interface->u.AllocateLinearVideoMemory.type;
+
         /* Allocate memory. */
         gcmkONERROR(
             _AllocateMemory(Kernel,
@@ -1181,6 +1206,7 @@ gckKERNEL_Dispatch(
         if (node->VidMem.memory->object.type == gcvOBJ_VIDMEM)
         {
             bytes = node->VidMem.bytes;
+            node->VidMem.type = type;
 
             gcmkONERROR(
                 gckKERNEL_AddProcessDB(Kernel,
@@ -1192,6 +1218,7 @@ gckKERNEL_Dispatch(
         else
         {
             bytes = node->Virtual.bytes;
+            node->Virtual.type = type;
 
             if(node->Virtual.contiguous)
             {
@@ -1239,14 +1266,6 @@ gckKERNEL_Dispatch(
             node->VidMem.logical = gcvNULL;
         }
 #endif
-        /* Free video memory. */
-        gcmkONERROR(
-            gckVIDMEM_Free(node));
-
-        gcmkONERROR(
-            gckKERNEL_RemoveProcessDB(Kernel,
-                                      processID, gcvDB_VIDEO_MEMORY,
-                                      node));
 
         if (node->VidMem.memory->object.type == gcvOBJ_VIDMEM)
         {
@@ -1269,6 +1288,15 @@ gckKERNEL_Dispatch(
                                       processID, gcvDB_VIDEO_MEMORY_VIRTUAL,
                                       node));
         }
+
+        /* Free video memory. */
+        gcmkONERROR(
+            gckVIDMEM_Free(Kernel, node));
+
+        gcmkONERROR(
+            gckKERNEL_RemoveProcessDB(Kernel,
+                                      processID, gcvDB_VIDEO_MEMORY,
+                                      node));
 
         break;
 

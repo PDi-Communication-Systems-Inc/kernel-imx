@@ -28,6 +28,7 @@
 #include <linux/task_io_accounting_ops.h>
 #include <linux/fault-inject.h>
 #include <linux/list_sort.h>
+#include <linux/delay.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/block.h>
@@ -347,30 +348,86 @@ void blk_put_queue(struct request_queue *q)
 }
 EXPORT_SYMBOL(blk_put_queue);
 
-/*
- * Note: If a driver supplied the queue lock, it is disconnected
- * by this function. The actual state of the lock doesn't matter
- * here as the request_queue isn't accessible after this point
- * (QUEUE_FLAG_DEAD is set) and no other requests will be queued.
+/**
+ * blk_drain_queue - drain requests from request_queue
+ * @q: queue to drain
+ * @drain_all: whether to drain all requests or only the ones w/ ELVPRIV
+ *
+ * Drain requests from @q.  If @drain_all is set, all requests are drained.
+ * If not, only ELVPRIV requests are drained.  The caller is responsible
+ * for ensuring that no new requests which need to be drained are queued.
+ */
+void blk_drain_queue(struct request_queue *q, bool drain_all)
+{
+	while (true) {
+		int nr_rqs;
+
+		spin_lock_irq(q->queue_lock);
+
+		elv_drain_elevator(q);
+
+		/*
+		 * This function might be called on a queue which failed
+		 * driver init after queue creation or is not yet fully
+		 * active yet.  Some drivers (e.g. fd and loop) get unhappy
+		 * in such cases.  Kick queue iff dispatch queue has
+		 * something on it and @q has request_fn set.
+		 */
+		if (!list_empty(&q->queue_head) && q->request_fn)
+			__blk_run_queue(q);
+
+		if (drain_all)
+			nr_rqs = q->rq.count[0] + q->rq.count[1];
+		else
+			nr_rqs = q->rq.elvpriv;
+
+		spin_unlock_irq(q->queue_lock);
+
+		if (!nr_rqs)
+			break;
+		msleep(10);
+	}
+}
+
+/**
+ * blk_cleanup_queue - shutdown a request queue
+ * @q: request queue to shutdown
+ *
+ * Mark @q DEAD, drain all pending requests, destroy and put it.  All
+ * future requests will be failed immediately with -ENODEV.
  */
 void blk_cleanup_queue(struct request_queue *q)
 {
-	/*
-	 * We know we have process context here, so we can be a little
-	 * cautious and ensure that pending block actions on this device
-	 * are done before moving on. Going into this function, we should
-	 * not have processes doing IO to this device.
-	 */
-	blk_sync_queue(q);
+	spinlock_t *lock = q->queue_lock;
 
-	del_timer_sync(&q->backing_dev_info.laptop_mode_wb_timer);
+	/* mark @q DEAD, no new request or merges will be allowed afterwards */
 	mutex_lock(&q->sysfs_lock);
 	queue_flag_set_unlocked(QUEUE_FLAG_DEAD, q);
-	mutex_unlock(&q->sysfs_lock);
+
+	spin_lock_irq(lock);
+	queue_flag_set(QUEUE_FLAG_NOMERGES, q);
+	queue_flag_set(QUEUE_FLAG_NOXMERGES, q);
+	queue_flag_set(QUEUE_FLAG_DEAD, q);
 
 	if (q->queue_lock != &q->__queue_lock)
 		q->queue_lock = &q->__queue_lock;
 
+	spin_unlock_irq(lock);
+	mutex_unlock(&q->sysfs_lock);
+
+	/*
+	 * Drain all requests queued before DEAD marking.  The caller might
+	 * be trying to tear down @q before its elevator is initialized, in
+	 * which case we don't want to call into draining.
+	 */
+	if (q->elevator)
+		blk_drain_queue(q, true);
+
+	/* @q won't process any more request, flush async actions */
+	del_timer_sync(&q->backing_dev_info.laptop_mode_wb_timer);
+	blk_sync_queue(q);
+
+	/* @q is and will stay empty, shutdown and put */
 	blk_put_queue(q);
 }
 EXPORT_SYMBOL(blk_cleanup_queue);
@@ -676,10 +733,19 @@ static bool blk_rq_should_init_elevator(struct bio *bio)
 	return true;
 }
 
-/*
- * Get a free request, queue_lock must be held.
- * Returns NULL on failure, with queue_lock held.
- * Returns !NULL on success, with queue_lock *not held*.
+/**
+ * get_request - get a free request
+ * @q: request_queue to allocate request from
+ * @rw_flags: RW and SYNC flags
+ * @bio: bio to allocate request for (can be %NULL)
+ * @gfp_mask: allocation mask
+ *
+ * Get a free request from @q.  This function may fail under memory
+ * pressure or if @q is dead.
+ *
+ * Must be callled with @q->queue_lock held and,
+ * Returns %NULL on failure, with @q->queue_lock held.
+ * Returns !%NULL on success, with @q->queue_lock *not held*.
  */
 static struct request *get_request(struct request_queue *q, int rw_flags,
 				   struct bio *bio, gfp_t gfp_mask)
@@ -689,6 +755,9 @@ static struct request *get_request(struct request_queue *q, int rw_flags,
 	struct io_context *ioc = NULL;
 	const bool is_sync = rw_is_sync(rw_flags) != 0;
 	int may_queue, priv = 0;
+
+	if (unlikely(test_bit(QUEUE_FLAG_DEAD, &q->queue_flags)))
+		return NULL;
 
 	may_queue = elv_may_queue(q, rw_flags);
 	if (may_queue == ELV_MQUEUE_NO)
@@ -782,11 +851,18 @@ out:
 	return rq;
 }
 
-/*
- * No available requests for this queue, wait for some requests to become
- * available.
+/**
+ * get_request_wait - get a free request with retry
+ * @q: request_queue to allocate request from
+ * @rw_flags: RW and SYNC flags
+ * @bio: bio to allocate request for (can be %NULL)
  *
- * Called with q->queue_lock held, and returns with it unlocked.
+ * Get a free request from @q.  This function keeps retrying under memory
+ * pressure and fails iff @q is dead.
+ *
+ * Must be callled with @q->queue_lock held and,
+ * Returns %NULL on failure, with @q->queue_lock held.
+ * Returns !%NULL on success, with @q->queue_lock *not held*.
  */
 static struct request *get_request_wait(struct request_queue *q, int rw_flags,
 					struct bio *bio)
@@ -799,6 +875,9 @@ static struct request *get_request_wait(struct request_queue *q, int rw_flags,
 		DEFINE_WAIT(wait);
 		struct io_context *ioc;
 		struct request_list *rl = &q->rq;
+
+		if (unlikely(test_bit(QUEUE_FLAG_DEAD, &q->queue_flags)))
+			return NULL;
 
 		prepare_to_wait_exclusive(&rl->wait[is_sync], &wait,
 				TASK_UNINTERRUPTIBLE);
@@ -830,19 +909,15 @@ struct request *blk_get_request(struct request_queue *q, int rw, gfp_t gfp_mask)
 {
 	struct request *rq;
 
-	if (unlikely(test_bit(QUEUE_FLAG_DEAD, &q->queue_flags)))
-		return NULL;
-
 	BUG_ON(rw != READ && rw != WRITE);
 
 	spin_lock_irq(q->queue_lock);
-	if (gfp_mask & __GFP_WAIT) {
+	if (gfp_mask & __GFP_WAIT)
 		rq = get_request_wait(q, rw, NULL);
-	} else {
+	else
 		rq = get_request(q, rw, NULL, gfp_mask);
-		if (!rq)
-			spin_unlock_irq(q->queue_lock);
-	}
+	if (!rq)
+		spin_unlock_irq(q->queue_lock);
 	/* q->queue_lock is unlocked at this point */
 
 	return rq;
@@ -1263,6 +1338,10 @@ get_rq:
 	 * Returns with the queue unlocked.
 	 */
 	req = get_request_wait(q, rw_flags, bio);
+	if (unlikely(!req)) {
+		bio_endio(bio, -ENODEV);	/* @q is dead */
+		goto out_unlock;
+	}
 
 	/*
 	 * After dropping the lock and possibly sleeping here, our request

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2013 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright (C) 2012-2015 Freescale Semiconductor, Inc. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -70,6 +70,7 @@
 #include <mach/mxc_hdmi.h>
 #include <mach/mxc_asrc.h>
 #include <mach/mipi_dsi.h>
+#include <mach/mxc_ir.h>
 
 #include <asm/irq.h>
 #include <asm/setup.h>
@@ -456,6 +457,7 @@ static struct wm8962_pdata wm8962_config_data = {
 		[2] = WM8962_GPIO_FN_DMICCLK,
 		[4] = 0x8000 | WM8962_GPIO_FN_DMICDAT,
 	},
+	.clock_enable = wm8962_clk_enable,
 };
 
 static struct mxc_audio_platform_data wm8962_data = {
@@ -815,6 +817,7 @@ static struct i2c_board_info mxc_i2c0_board_info[] __initdata = {
 	},
 	{
 		I2C_BOARD_INFO("mma8x5x", 0x1c),
+		.irq =	gpio_to_irq(SABRESD_ACCL_INT),
 		.platform_data = (void *)&mma8x5x_position,
 	},
 };
@@ -1427,7 +1430,7 @@ static struct ion_platform_data imx_ion_data = {
 		.type = ION_HEAP_TYPE_CARVEOUT,
 		.name = "vpu_ion",
 		.size = SZ_16M,
-		.cacheable = 1,
+		.cacheable = 0,
 		},
 	},
 };
@@ -1698,6 +1701,14 @@ static struct platform_pwm_backlight_data mx6_sabresd_pwm_backlight_data = {
 	.dft_brightness = 128,
 	.pwm_period_ns = 50000,
 };
+
+#ifdef CONFIG_HAVE_EPIT
+static struct platform_ir_data mx6_sabresd_ir_data = {
+    .pwm_id = 1,
+    .epit_id = 0,
+    .gpio_id = 0,
+};
+#endif
 
 static struct mxc_dvfs_platform_data sabresd_dvfscore_data = {
 	.reg_id = "VDDCORE",
@@ -2058,11 +2069,21 @@ static void __init mx6_sabresd_board_init(void)
 	gpio_request(SABRESD_CABC_EN1, "cabc-en1");
 	gpio_direction_output(SABRESD_CABC_EN1, 0);
 
+#ifdef CONFIG_HAVE_EPIT
+	imx6q_add_mxc_epit(0);
+	imx6q_add_mxc_epit(1);
+#endif
+
 	imx6q_add_mxc_pwm(0);
 	imx6q_add_mxc_pwm(1);
 	imx6q_add_mxc_pwm(2);
 	imx6q_add_mxc_pwm(3);
 	imx6q_add_mxc_pwm_backlight(0, &mx6_sabresd_pwm_backlight_data);
+
+#ifdef CONFIG_MX6_IR
+	/* add MXC IR device */
+	imx6q_add_mxc_ir(0, &mx6_sabresd_ir_data);
+#endif
 
 	imx6q_add_otp();
 	imx6q_add_viim();
@@ -2081,6 +2102,9 @@ static void __init mx6_sabresd_board_init(void)
 	gpio_request(SABRESD_SENSOR_EN, "sensor-en");
 	gpio_direction_output(SABRESD_SENSOR_EN, 1);
 
+	/* enable accel intr */
+	gpio_request(SABRESD_ACCL_INT, "accel-int");
+	gpio_direction_input(SABRESD_ACCL_INT);
 	/* enable ecompass intr */
 	gpio_request(SABRESD_eCOMPASS_INT, "ecompass-int");
 	gpio_direction_input(SABRESD_eCOMPASS_INT);
