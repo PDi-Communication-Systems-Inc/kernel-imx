@@ -35,6 +35,7 @@
 #include "fsl_csi.h"
 
 void __iomem *csi_regbase;
+EXPORT_SYMBOL(csi_regbase);
 static int irq_nr;
 static bool g_csi_mclk_on;
 static csi_irq_callback_t g_callback;
@@ -285,6 +286,7 @@ void csi_dmareq_rff_enable(void)
 	cr3 |= BIT_HRESP_ERR_EN;
 	__raw_writel(cr3, CSI_CSICR3);
 }
+EXPORT_SYMBOL(csi_dmareq_rff_enable);
 
 void csi_dmareq_rff_disable(void)
 {
@@ -294,6 +296,7 @@ void csi_dmareq_rff_disable(void)
 	cr3 &= ~BIT_HRESP_ERR_EN;
 	__raw_writel(cr3, CSI_CSICR3);
 }
+EXPORT_SYMBOL(csi_dmareq_rff_disable);
 
 static int __devinit csi_probe(struct platform_device *pdev)
 {

@@ -134,6 +134,15 @@
 #define AR6MX_TV_OR_AIO			  AR6MX_TTL_DI5 // float high for TV/Tab, pull low for all-in-one -JTS
 #define AR6MX_ANDROID_PWRSTATE    AR6MX_TTL_DO0
 
+/* PDi defined GPIO for OV5640 Camera on CSI MIPI CN4 port 
+
+   Remember to use iomux-mx6q.h to look up mapping */
+
+/* MX6Q_PAD_ENET_RXD1__GPIO_1_26 */
+#define AR6MX_CSI_RST	IMX_GPIO_NR(1, 26)
+
+/*_MX6Q_PAD_CSI0_DAT14__GPIO_6_0 */
+#define AR6MX_CSI_PWN   IMX_GPIO_NR(6, 0)
 
 extern char *gp_reg_id;
 extern char *soc_reg_id;
@@ -544,13 +553,92 @@ static struct imxi2c_platform_data mx6q_ar6mx_i2c1_data = {
 	.bitrate	= 100000,
 };
 
-static struct i2c_board_info mxc_i2c0_board_info[] __initdata = {
-  #if 1
-	{
-		I2C_BOARD_INFO("wm8960", 0x1a),
-	},
-	#endif
+static void mx6q_csi0_cam_powerdown(int powerdown)
+{
+        if (powerdown)
+                gpio_set_value(AR6MX_CSI_PWN, 1);
+        else 
+                gpio_set_value(AR6MX_CSI_PWN, 0);
+
+        msleep(2);
+}
+
+static void mx6_csi0_io_init(void)
+{
+        iomux_v3_cfg_t *sensor_pads = NULL;
+        u32 sensor_pads_cnt;
+
+        if (cpu_is_mx6q()) {
+           sensor_pads = mx6dq_ar6mx_csi0_sensor_pads;
+           sensor_pads_cnt = \
+              ARRAY_SIZE(mx6dq_ar6mx_csi0_sensor_pads);
+        }
+        else if (cpu_is_mx6dl()) {
+           sensor_pads = mx6dq_ar6mx_csi0_sensor_pads;
+           sensor_pads_cnt = \
+              ARRAY_SIZE(mx6dq_ar6mx_csi0_sensor_pads);
+        } 
+
+        BUG_ON(!sensor_pads);
+        mxc_iomux_v3_setup_multiple_pads(sensor_pads, sensor_pads_cnt);
+
+        /* Camera reset */
+        gpio_request(AR6MX_CSI_RST, "cam-reset");
+        gpio_direction_output(AR6MX_CSI_RST, 1);
+
+        /* Camera power down */
+        gpio_request(AR6MX_CSI_PWN, "cam-pwdn");
+        gpio_direction_output(AR6MX_CSI_PWN, 1);
+        msleep(5);
+        gpio_set_value(AR6MX_CSI_PWN, 0);
+        msleep(5);
+	gpio_direction_output(AR6MX_CSI_RST, 0);
+	msleep(5);
+	gpio_direction_output(AR6MX_CSI_RST, 1);
+	msleep(5);
+	gpio_direction_output(AR6MX_CSI_PWN, 1);
+
+        /* For MX6Q:
+         * GPR1 bit19 and bit20 meaning:
+         * Bit19:       0 - Enable mipi to IPU1 CSI0
+         *                      virtual channel is fixed to 0
+         *              1 - Enable parallel interface to IPU1 CSI0
+         * Bit20:       0 - Enable mipi to IPU2 CSI1
+         *                      virtual channel is fixed to 3
+         *              1 - Enable parallel interface to IPU2 CSI1
+         * IPU1 CSI1 directly connect to mipi csi2,
+         *      virtual channel is fixed to 1
+         * IPU2 CSI0 directly connect to mipi csi2,
+         *      virtual channel is fixed to 2
+         *
+         * For MX6DL:
+         * GPR1 bit 21 and GPR13 bit 0-5, RM has detail information
+         */
+        if (cpu_is_mx6q())
+                mxc_iomux_set_gpr_register(1, 19, 1, 0);
+        else if (cpu_is_mx6dl())
+                mxc_iomux_set_gpr_register(13, 0, 3, 4);
+}
+
+static struct fsl_mxc_camera_platform_data camera_data = {
+        .mclk                   = 24000000,
+        .mclk_source            = 0, 
+        .csi                    = 0, 
+        .io_init                = mx6_csi0_io_init,
+        .pwdn                   = mx6q_csi0_cam_powerdown
 };
+
+static struct i2c_board_info mxc_i2c0_board_info[] __initdata = {
+        {    
+                I2C_BOARD_INFO("wm8960", 0x1a),
+        },   
+
+        {    
+                I2C_BOARD_INFO("ov5640_mipi", 0x3c),
+                .platform_data = (void *)&camera_data,
+        },   
+};
+
 
 static struct i2c_board_info mxc_i2c1_board_info[] __initdata = {
 	{

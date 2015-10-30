@@ -270,3 +270,8 @@ static iomux_v3_cfg_t mx6q_ar6mx_uart1_rev03_pads[] ={
         MX6Q_PAD_SD3_DAT6__UART1_TXD,
 };
 
+static iomux_v3_cfg_t mx6dq_ar6mx_csi0_sensor_pads[] = { 
+        MX6Q_PAD_SD1_DAT1__GPIO_1_17,    /* BL3EN_GPO */
+        MX6Q_PAD_CSI0_MCLK__GPIO_5_19,   /* CSI_MCLK */ 	
+};
+
