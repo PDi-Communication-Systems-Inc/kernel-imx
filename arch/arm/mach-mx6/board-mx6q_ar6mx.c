@@ -134,6 +134,15 @@
 #define AR6MX_TV_OR_AIO			  AR6MX_TTL_DI5 // float high for TV/Tab, pull low for all-in-one -JTS
 #define AR6MX_ANDROID_PWRSTATE    AR6MX_TTL_DO0
 
+/* PDi defined GPIO for OV5640 Camera on CSI MIPI CN4 port 
+
+   Remember to use iomux-mx6q.h to look up mapping */
+
+/* MX6Q_PAD_ENET_RXD1__GPIO_1_26 */
+#define AR6MX_MIPICSI_RST	IMX_GPIO_NR(1, 26)
+
+/*_MX6Q_PAD_CSI0_DAT14__GPIO_6_0 */
+#define AR6MX_MIPICSI_PWN   IMX_GPIO_NR(6, 0)
 
 extern char *gp_reg_id;
 extern char *soc_reg_id;
@@ -434,6 +443,44 @@ static struct fec_platform_data fec_data __initdata = {
 	.phy			= PHY_INTERFACE_MODE_RGMII,
 };
 
+static void mx6q_mipi_powerdown(int powerdown)
+{
+	if (powerdown)
+		gpio_set_value(AR6MX_MIPICSI_PWN, 1);
+	else
+		gpio_set_value(AR6MX_MIPICSI_PWN, 0);
+
+	msleep(2);
+}
+
+static void mx6q_mipi_sensor_io_init(void)
+{
+	/* Camera reset */
+	gpio_request(AR6MX_MIPICSI_RST, "cam-reset");
+	gpio_direction_output(AR6MX_MIPICSI_RST, 1);
+
+	/* Camera power down */
+	gpio_request(AR6MX_MIPICSI_PWN, "cam-pwdn");
+	gpio_direction_output(AR6MX_MIPICSI_PWN, 1);
+	msleep(5);
+	gpio_set_value(AR6MX_MIPICSI_PWN, 0);
+	msleep(5);
+	gpio_set_value(AR6MX_MIPICSI_RST, 0);
+	msleep(1);
+	gpio_set_value(AR6MX_MIPICSI_RST, 1);
+	msleep(5);
+	gpio_set_value(AR6MX_MIPICSI_PWN, 1);
+
+}
+
+static struct fsl_mxc_camera_platform_data mipi_csi2_data = {
+	.mclk = 24000000,
+	.mclk_source = 0,
+	.csi = 1,
+	.io_init = mx6q_mipi_sensor_io_init,
+	.pwdn = mx6q_mipi_powerdown,
+};
+
 static int mx6q_ar6mx_spi_cs[] = {
 	AR6MX_ECSPI3_CS0,
 };
@@ -545,11 +592,14 @@ static struct imxi2c_platform_data mx6q_ar6mx_i2c1_data = {
 };
 
 static struct i2c_board_info mxc_i2c0_board_info[] __initdata = {
-  #if 1
-	{
-		I2C_BOARD_INFO("wm8960", 0x1a),
-	},
-	#endif
+        {    
+                I2C_BOARD_INFO("wm8960", 0x1a),
+        },   
+
+        {    
+                I2C_BOARD_INFO("ov5640_mipi", 0x3c),
+		.platform_data = (void *)&mipi_csi2_data,
+        },   
 };
 
 static struct i2c_board_info mxc_i2c1_board_info[] __initdata = {
@@ -1003,6 +1053,15 @@ static struct fsl_mxc_capture_platform_data capture_data[] = {
 	},
 };
 
+static struct mipi_csi2_platform_data mipi_csi2_pdata = {
+	.ipu_id	 = 0,
+	.csi_id = 1,
+	.v_channel = 0,
+	.lanes = 2,
+	.dphy_clk = "mipi_pllref_clk",
+	.pixel_clk = "emi_clk",
+};
+
 static const struct imx_pcie_platform_data mx6_ar6mx_pcie_data __initconst = {
 	.pcie_pwr_en	= -EINVAL,
 	.pcie_rst	= AR6MX_PCIE_RST_B,
@@ -1126,6 +1185,7 @@ static void __init mx6_board_init(void)
 	imx6q_add_v4l2_output(0);
 	imx6q_add_v4l2_capture(0, &capture_data[0]);
 	imx6q_add_v4l2_capture(1, &capture_data[1]);
+	imx6q_add_mipi_csi2(&mipi_csi2_pdata);
 
 	if (!board_is_mx6_reva())
 		imx6q_add_imx_snvs_rtc();
