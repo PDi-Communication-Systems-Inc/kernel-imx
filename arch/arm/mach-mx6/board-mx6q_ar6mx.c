@@ -139,10 +139,10 @@
    Remember to use iomux-mx6q.h to look up mapping */
 
 /* MX6Q_PAD_ENET_RXD1__GPIO_1_26 */
-#define AR6MX_CSI_RST	IMX_GPIO_NR(1, 26)
+#define AR6MX_MIPICSI_RST	IMX_GPIO_NR(1, 26)
 
 /*_MX6Q_PAD_CSI0_DAT14__GPIO_6_0 */
-#define AR6MX_CSI_PWN   IMX_GPIO_NR(6, 0)
+#define AR6MX_MIPICSI_PWN   IMX_GPIO_NR(6, 0)
 
 extern char *gp_reg_id;
 extern char *soc_reg_id;
@@ -443,6 +443,44 @@ static struct fec_platform_data fec_data __initdata = {
 	.phy			= PHY_INTERFACE_MODE_RGMII,
 };
 
+static void mx6q_mipi_powerdown(int powerdown)
+{
+	if (powerdown)
+		gpio_set_value(AR6MX_MIPICSI_PWN, 1);
+	else
+		gpio_set_value(AR6MX_MIPICSI_PWN, 0);
+
+	msleep(2);
+}
+
+static void mx6q_mipi_sensor_io_init(void)
+{
+	/* Camera reset */
+	gpio_request(AR6MX_MIPICSI_RST, "cam-reset");
+	gpio_direction_output(AR6MX_MIPICSI_RST, 1);
+
+	/* Camera power down */
+	gpio_request(AR6MX_MIPICSI_PWN, "cam-pwdn");
+	gpio_direction_output(AR6MX_MIPICSI_PWN, 1);
+	msleep(5);
+	gpio_set_value(AR6MX_MIPICSI_PWN, 0);
+	msleep(5);
+	gpio_set_value(AR6MX_MIPICSI_RST, 0);
+	msleep(1);
+	gpio_set_value(AR6MX_MIPICSI_RST, 1);
+	msleep(5);
+	gpio_set_value(AR6MX_MIPICSI_PWN, 1);
+
+}
+
+static struct fsl_mxc_camera_platform_data mipi_csi2_data = {
+	.mclk = 24000000,
+	.mclk_source = 0,
+	.csi = 1,
+	.io_init = mx6q_mipi_sensor_io_init,
+	.pwdn = mx6q_mipi_powerdown,
+};
+
 static int mx6q_ar6mx_spi_cs[] = {
 	AR6MX_ECSPI3_CS0,
 };
@@ -553,81 +591,6 @@ static struct imxi2c_platform_data mx6q_ar6mx_i2c1_data = {
 	.bitrate	= 100000,
 };
 
-static void mx6q_csi0_cam_powerdown(int powerdown)
-{
-        if (powerdown)
-                gpio_set_value(AR6MX_CSI_PWN, 1);
-        else 
-                gpio_set_value(AR6MX_CSI_PWN, 0);
-
-        msleep(2);
-}
-
-static void mx6_csi0_io_init(void)
-{
-        iomux_v3_cfg_t *sensor_pads = NULL;
-        u32 sensor_pads_cnt;
-
-        if (cpu_is_mx6q()) {
-           sensor_pads = mx6dq_ar6mx_csi0_sensor_pads;
-           sensor_pads_cnt = \
-              ARRAY_SIZE(mx6dq_ar6mx_csi0_sensor_pads);
-        }
-        else if (cpu_is_mx6dl()) {
-           sensor_pads = mx6dq_ar6mx_csi0_sensor_pads;
-           sensor_pads_cnt = \
-              ARRAY_SIZE(mx6dq_ar6mx_csi0_sensor_pads);
-        } 
-
-        BUG_ON(!sensor_pads);
-        mxc_iomux_v3_setup_multiple_pads(sensor_pads, sensor_pads_cnt);
-
-        /* Camera reset */
-        gpio_request(AR6MX_CSI_RST, "cam-reset");
-        gpio_direction_output(AR6MX_CSI_RST, 1);
-
-        /* Camera power down */
-        gpio_request(AR6MX_CSI_PWN, "cam-pwdn");
-        gpio_direction_output(AR6MX_CSI_PWN, 1);
-        msleep(5);
-        gpio_set_value(AR6MX_CSI_PWN, 0);
-        msleep(5);
-	gpio_direction_output(AR6MX_CSI_RST, 0);
-	msleep(5);
-	gpio_direction_output(AR6MX_CSI_RST, 1);
-	msleep(5);
-	gpio_direction_output(AR6MX_CSI_PWN, 1);
-
-        /* For MX6Q:
-         * GPR1 bit19 and bit20 meaning:
-         * Bit19:       0 - Enable mipi to IPU1 CSI0
-         *                      virtual channel is fixed to 0
-         *              1 - Enable parallel interface to IPU1 CSI0
-         * Bit20:       0 - Enable mipi to IPU2 CSI1
-         *                      virtual channel is fixed to 3
-         *              1 - Enable parallel interface to IPU2 CSI1
-         * IPU1 CSI1 directly connect to mipi csi2,
-         *      virtual channel is fixed to 1
-         * IPU2 CSI0 directly connect to mipi csi2,
-         *      virtual channel is fixed to 2
-         *
-         * For MX6DL:
-         * GPR1 bit 21 and GPR13 bit 0-5, RM has detail information
-         */
-        if (cpu_is_mx6q())
-                mxc_iomux_set_gpr_register(1, 19, 1, 0);
-        else if (cpu_is_mx6dl())
-                mxc_iomux_set_gpr_register(13, 0, 3, 4);
-}
-
-static struct fsl_mxc_camera_platform_data camera_data = {
-        .mclk                   = 24000000,
-        .mclk_source            = 0, 
-        .csi                    = 0, 
-        .io_init                = mx6_csi0_io_init,
-        .pwdn                   = mx6q_csi0_cam_powerdown
-};
-
 static struct i2c_board_info mxc_i2c0_board_info[] __initdata = {
         {    
                 I2C_BOARD_INFO("wm8960", 0x1a),
@@ -635,7 +598,7 @@ static struct i2c_board_info mxc_i2c0_board_info[] __initdata = {
 
         {    
                 I2C_BOARD_INFO("ov5640_mipi", 0x3c),
-                .platform_data = (void *)&camera_data,
+		.platform_data = (void *)&mipi_csi2_data,
         },   
 };
 
@@ -1091,6 +1054,15 @@ static struct fsl_mxc_capture_platform_data capture_data[] = {
 	},
 };
 
+static struct mipi_csi2_platform_data mipi_csi2_pdata = {
+	.ipu_id	 = 0,
+	.csi_id = 1,
+	.v_channel = 0,
+	.lanes = 2,
+	.dphy_clk = "mipi_pllref_clk",
+	.pixel_clk = "emi_clk",
+};
+
 static const struct imx_pcie_platform_data mx6_ar6mx_pcie_data __initconst = {
 	.pcie_pwr_en	= -EINVAL,
 	.pcie_rst	= AR6MX_PCIE_RST_B,
@@ -1190,6 +1162,7 @@ static void __init mx6_board_init(void)
 	imx6q_add_v4l2_output(0);
 	imx6q_add_v4l2_capture(0, &capture_data[0]);
 	imx6q_add_v4l2_capture(1, &capture_data[1]);
+	imx6q_add_mipi_csi2(&mipi_csi2_pdata);
 
 	if (!board_is_mx6_reva())
 		imx6q_add_imx_snvs_rtc();
