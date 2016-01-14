@@ -79,6 +79,10 @@ bool mipi_csi2_enable(struct mipi_csi2_info *info)
 	} else
 		mipi_dbg("mipi csi2 already enabled!\n");
 
+	unsigned long rate = clk_get_rate(info->dphy_clk);
+
+	pr_err(">>> @SFC: dphy_clk rate: %i", rate);
+
 	status = info->mipi_en;
 
 	_mipi_csi2_unlock(info);
@@ -243,6 +247,42 @@ unsigned int mipi_csi2_get_error2(struct mipi_csi2_info *info)
 EXPORT_SYMBOL(mipi_csi2_get_error2);
 
 /*!
+ * This function is called to get mipi csi2 ctrl0 status.
+ *
+ * @param	info		mipi csi2 hander
+ * @return      Returns tst_ctrl0 value
+ */
+unsigned int mipi_csi2_get_ctrl0(struct mipi_csi2_info *info)
+{
+	unsigned int ctrl0;
+
+	_mipi_csi2_lock(info);
+	ctrl0 = mipi_csi2_read(info, CSI2_PHY_TST_CTRL0);
+	_mipi_csi2_unlock(info);
+
+	return ctrl0;
+}
+EXPORT_SYMBOL(mipi_csi2_get_ctrl0);
+
+/*!
+ * This function is called to get mipi csi2 ctrl1 status.
+ *
+ * @param	info		mipi csi2 hander
+ * @return      Returns tst_ctrl 1 value
+ */
+unsigned int mipi_csi2_get_ctrl1(struct mipi_csi2_info *info)
+{
+	unsigned int ctrl1;
+
+	_mipi_csi2_lock(info);
+	ctrl1 = mipi_csi2_read(info, CSI2_PHY_TST_CTRL1);
+	_mipi_csi2_unlock(info);
+
+	return ctrl1;
+}
+EXPORT_SYMBOL(mipi_csi2_get_ctrl1);
+
+/*!
  * This function is called to enable mipi to ipu pixel clock.
  *
  * @param	info		mipi csi2 hander
@@ -250,6 +290,10 @@ EXPORT_SYMBOL(mipi_csi2_get_error2);
  */
 int mipi_csi2_pixelclk_enable(struct mipi_csi2_info *info)
 {
+	unsigned long rate = clk_get_rate(info->pixel_clk);
+
+	pr_err(">>>> @SFC: pixel_clk rate: %d", rate);
+
 	return clk_enable(info->pixel_clk);
 }
 EXPORT_SYMBOL(mipi_csi2_pixelclk_enable);
@@ -286,7 +330,11 @@ int mipi_csi2_reset(struct mipi_csi2_info *info)
 	mipi_csi2_write(info, 0x00000002, CSI2_PHY_TST_CTRL0);
 	mipi_csi2_write(info, 0x00010044, CSI2_PHY_TST_CTRL1);
 	mipi_csi2_write(info, 0x00000000, CSI2_PHY_TST_CTRL0);
-	mipi_csi2_write(info, 0x00000014, CSI2_PHY_TST_CTRL1);
+	mipi_csi2_write(info, 0x00000022, CSI2_PHY_TST_CTRL1); //849 MHz OV5640 works
+	//0x42 no sync achieved 150MHz X
+	//0x22 no sync achieved 135MHz X. According to documents should use this
+	//0x02 no sync achieved 123MHz X
+	//mipi_csi2_write(info, 0x00000022, CSI2_PHY_TST_CTRL1); //66.7MHz*2 133.4MHz = 135MHz
 	mipi_csi2_write(info, 0x00000002, CSI2_PHY_TST_CTRL0);
 	mipi_csi2_write(info, 0x00000000, CSI2_PHY_TST_CTRL0);
 
