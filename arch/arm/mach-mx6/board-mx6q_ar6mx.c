@@ -131,8 +131,9 @@
 #define AR6MX_TV_ARROW_DOWN	      AR6MX_TTL_DI2
 #define AR6MX_AIO_VOL_DOWN	      AR6MX_TTL_DI2
 #define AR6MX_TV_ARROW_LEFT	      AR6MX_TTL_DI3
-#define AR6MX_TV_OR_AIO			  AR6MX_TTL_DI5 // float high for TV/Tab, pull low for all-in-one -JTS
-#define AR6MX_ANDROID_PWRSTATE    AR6MX_TTL_DO0
+#define AR6MX_TV_OR_AIO		      AR6MX_TTL_DI5 // float high for TV/Tab, pull low for all-in-one -JTS
+#define AR6MX_ANDROID_PWRSTATE        AR6MX_TTL_DO0
+#define AR6MX_INTERNAL_SPK_ENABLE     AR6MX_TTL_DO1
 
 /* PDi defined GPIO for OV5640 Camera on CSI MIPI CN4 port 
 
@@ -1099,6 +1100,10 @@ static __init void ar6mx_init_external_gpios(void) {
 		gpio_request(AR6MX_STATUS_LED, "status_led");       
 		gpio_direction_output(AR6MX_STATUS_LED, 0);
         gpio_export(AR6MX_STATUS_LED, true);
+	// Export the DO1 to user space and pull it low -JTS
+	gpio_request(AR6MX_INTERNAL_SPK_ENABLE, "int_speaker_enable");       
+	gpio_direction_output(AR6MX_INTERNAL_SPK_ENABLE, 0);
+        gpio_export(AR6MX_INTERNAL_SPK_ENABLE, true);
 }
 
 /* Backlight PWM for LVDS0 */
