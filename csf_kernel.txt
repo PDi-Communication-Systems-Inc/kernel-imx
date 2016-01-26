@@ -42,6 +42,6 @@ File = "/mnt/savage/mrobbeloth/projects/quad_src_main_4.3/myandroid/vendor/frees
 # terms made generic here for use with sed
 
 Verification index = 2
-Blocks = 0x10808000 0x0 0x004383e8 "/mnt/savage/mrobbeloth/projects/quad_src_main_4.3/myandroid/out/target/product/ar6mx/boot_original.bak-kernel", \
+Blocks = 0x10808000 0x0 0x4383e0 "/mnt/savage/mrobbeloth/projects/quad_src_main_4.3/myandroid/out/target/product/ar6mx/boot_original.bak-kernel", \
          0x11800000 0x0 0x3a020 "/mnt/savage/mrobbeloth/projects/quad_src_main_4.3/myandroid/out/target/product/ar6mx/boot_original.bak-ramdisk.gz-pad-ivt"
           
