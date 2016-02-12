@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2011-2015 Freescale Semiconductor, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1885,17 +1885,14 @@ static void mxc_hdmi_set_mode(struct mxc_hdmi *hdmi)
 	dev_dbg(&hdmi->pdev->dev, "%s\n", __func__);
 
 	/* Set the default mode only once. */
-	if (!hdmi->dft_mode_set) {
-		dev_dbg(&hdmi->pdev->dev, "%s: setting to default=%s bpp=%d\n",
-			__func__, hdmi->dft_mode_str, hdmi->default_bpp);
+	dev_dbg(&hdmi->pdev->dev, "%s: setting to default=%s bpp=%d\n",
+		__func__, hdmi->dft_mode_str, hdmi->default_bpp);
 
-		fb_find_mode(&var, hdmi->fbi,
-			     hdmi->dft_mode_str, NULL, 0, NULL,
-			     hdmi->default_bpp);
+	fb_find_mode(&var, hdmi->fbi,
+		     hdmi->dft_mode_str, NULL, 0, NULL,
+		     hdmi->default_bpp);
 
-		hdmi->dft_mode_set = true;
-	} else
-		fb_videomode_to_var(&var, &hdmi->previous_non_vga_mode);
+	hdmi->dft_mode_set = true;
 
 	fb_var_to_videomode(&m, &var);
 	dump_fb_videomode(&m);
@@ -1971,14 +1968,16 @@ static void mxc_hdmi_cable_connected(struct mxc_hdmi *hdmi)
 	dev_dbg(&hdmi->pdev->dev, "%s exit\n", __func__);
 }
 
-static int mxc_hdmi_power_on(struct mxc_dispdrv_handle *disp)
+static int mxc_hdmi_power_on(struct mxc_dispdrv_handle *disp,
+			     struct fb_info *fbi)
 {
 	struct mxc_hdmi *hdmi = mxc_dispdrv_getdata(disp);
 	mxc_hdmi_phy_init(hdmi);
 	return 0;
 }
 
-static void mxc_hdmi_power_off(struct mxc_dispdrv_handle *disp)
+static void mxc_hdmi_power_off(struct mxc_dispdrv_handle *disp,
+			       struct fb_info *fbi)
 {
 	struct mxc_hdmi *hdmi = mxc_dispdrv_getdata(disp);
 	mxc_hdmi_phy_disable(hdmi);
@@ -2035,7 +2034,8 @@ static void hotplug_worker(struct work_struct *work)
 #endif
 			hdmi_set_cable_state(1);
 
-			switch_set_state(&hdmi->sdev_audio, 1);
+			if (!hdmi->hdmi_data.video_mode.mDVI)
+				switch_set_state(&hdmi->sdev_audio, 1);
 			switch_set_state(&hdmi->sdev_display, 1);
 
 		} else if (!(phy_int_pol & HDMI_PHY_HPD)) {

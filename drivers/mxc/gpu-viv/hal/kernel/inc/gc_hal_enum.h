@@ -166,6 +166,7 @@ typedef enum _gceFEATURE
 	gcvFEATURE_LINEAR_RENDER_TARGET,
     gcvFEATURE_BUG_FIXES8,
     gcvFEATURE_HALTI2,
+    gcvFEATURE_MMU,
 }
 gceFEATURE;
 
@@ -223,6 +224,7 @@ typedef enum _gceSURF_TYPE
     gcvSURF_TILE_STATUS_DIRTY  = 0x1000, /* Init tile status to all dirty */
 
     gcvSURF_LINEAR             = 0x2000,
+    gcvSURF_VG                     = 0x4000,
 
     gcvSURF_TEXTURE_LINEAR               = gcvSURF_TEXTURE
                                          | gcvSURF_LINEAR,
@@ -702,6 +704,7 @@ typedef enum _gce2D_STATE
     gcv2D_STATE_EN_GAMMA,
     gcv2D_STATE_DE_GAMMA,
     gcv2D_STATE_MULTI_SRC_BLIT_UNIFIED_DST_RECT,
+    gcv2D_STATE_XRGB_ENABLE,
 
     gcv2D_STATE_ARRAY_EN_GAMMA                   = 0x10001,
     gcv2D_STATE_ARRAY_DE_GAMMA,

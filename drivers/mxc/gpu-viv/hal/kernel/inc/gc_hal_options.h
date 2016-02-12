@@ -694,7 +694,7 @@
         This define enables the recovery code.
 */
 #ifndef gcdENABLE_RECOVERY
-#   define gcdENABLE_RECOVERY                   1
+#   define gcdENABLE_RECOVERY                   0
 #endif
 
 /*
@@ -726,7 +726,7 @@
 
         Support swap with a specific rectangle.
 
-        Set the rectangle with eglSetSwapRectangleVIV api.
+        Set the rectangle with eglSetSwapRectangleANDROID api.
 */
 #ifndef gcdSUPPORT_SWAP_RECTANGLE
 #   define gcdSUPPORT_SWAP_RECTANGLE            0

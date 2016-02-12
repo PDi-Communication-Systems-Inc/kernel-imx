@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2005 MontaVista Software
- * Copyright (C) 2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2013-2015 Freescale Semiconductor, Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -801,7 +801,19 @@ static int ehci_fsl_drv_resume(struct platform_device *pdev)
 		disable_irq(hcd->irq);
 		if (!host_can_wakeup_system(pdev)) {
 			/* Need open clock for register access */
+			u32 __iomem	*reg_ptr;
 			fsl_usb_clk_gate(hcd->self.controller->platform_data, true);
+
+			reg_ptr = (u32 __iomem *)(((u8 __iomem *)ehci->regs) + USBMODE);
+			tmp = ehci_readl(ehci, reg_ptr);
+
+			/* quit, if not in host mode */
+			if ((tmp & USBMODE_CM_HC) != USBMODE_CM_HC) {
+				usb_host_set_wakeup(hcd->self.controller, true);
+				fsl_usb_clk_gate(hcd->self.controller->platform_data, false);
+				enable_irq(hcd->irq);
+				return 0;
+			}
 			fsl_usb_lowpower_mode(pdata, false);
 
 			tmp = ehci_readl(ehci, &ehci->regs->port_status[0]);

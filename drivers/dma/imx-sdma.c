@@ -7,7 +7,7 @@
  *
  * Based on code from Freescale:
  *
- * Copyright 2004-2015 Freescale Semiconductor, Inc.
+ * Copyright 2004-2013 Freescale Semiconductor, Inc.
  *
  * The code contained herein is licensed under the GNU General Public
  * License. You may obtain a copy of the GNU General Public License
@@ -497,9 +497,11 @@ static void sdma_handle_channel_loop(struct sdma_channel *sdmac)
 		bd->mode.status |= BD_DONE;
 		sdmac->buf_tail++;
 		sdmac->buf_tail %= sdmac->num_bd;
-		/* restore mode.count after counter readed */
-		sdmac->chn_real_count = bd->mode.count;
-		bd->mode.count = sdmac->chn_count;
+		if (sdmac->peripheral_type == IMX_DMATYPE_UART) {
+			/* restore mode.count after counter readed */
+			sdmac->chn_real_count = bd->mode.count;
+			bd->mode.count = sdmac->chn_count;
+		}
 
 		if (sdmac->desc.callback)
 			sdmac->desc.callback(sdmac->desc.callback_param);
