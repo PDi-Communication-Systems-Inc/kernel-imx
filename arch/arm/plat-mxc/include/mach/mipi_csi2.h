@@ -82,6 +82,10 @@ unsigned int mipi_csi2_get_error1(struct mipi_csi2_info *info);
 
 unsigned int mipi_csi2_get_error2(struct mipi_csi2_info *info);
 
+unsigned int mipi_csi2_get_ctrl0(struct mipi_csi2_info *info);
+
+unsigned int mipi_csi2_get_ctrl1(struct mipi_csi2_info *info);
+
 int mipi_csi2_pixelclk_enable(struct mipi_csi2_info *info);
 
 void mipi_csi2_pixelclk_disable(struct mipi_csi2_info *info);
