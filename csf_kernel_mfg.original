@@ -1,0 +1,45 @@
+[Header]
+Version = 4.1
+Hash Algorithm = sha256
+Engine Configuration = 0
+Certificate Format = X509
+Signature Format = CMS
+Engine = CAAM
+
+[Install SRK]
+File = "../crts/SRK_1_2_3_4_table.bin"
+Source index = 0
+
+[Install CSFK]
+File = "../crts/CSF1_1_sha256_2048_65537_v3_usr_crt.pem"
+
+[Authenticate CSF]
+
+[Install Key]
+Verification index = 0
+Target index = 2
+File = "../crts/IMG1_1_sha256_2048_65537_v3_usr_crt.pem"
+
+[Authenticate Data]
+# This covers the Kernel, Ramdisk and Device Tree (second image)
+# Blocks have the following definition:
+#    Image block start address on i.MX, Offset from start of image file,
+#    Length of block in bytes, image data file
+# example
+# 0x14008000 = Kernel start address in DDR (base + offset)
+# 0x0 = Kernel starting index in file to sign
+# 0x669640 = Length of Kernel (data to sign)
+# boot.img-kernel = Kernel data file to generate signature against
+# 0x15000000 = Ramdisk start address in DDR
+# 0x0 = Ramdisk starting index in file to sign
+# 0x7A020 = Length of Ramdisk (data to sign = ramdisk + padding + ivt_size)
+# boot.img-ramdisk.gz-pad-ivt = Ramdisk data file to generate signature against
+# 0x14F00000 = Second boot image start address in DDR (device tree blob)
+# 0x0 = Second image starting index in file to sign
+# 0xC65E = Length of Second image
+# boot.img-second.gz = Second boot image data file to generate signature against
+# 
+# terms made generic here for use with sed
+
+Verification index = 2
+Blocks = start index length "uImage"
