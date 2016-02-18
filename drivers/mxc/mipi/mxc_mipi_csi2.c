@@ -330,7 +330,8 @@ int mipi_csi2_reset(struct mipi_csi2_info *info)
 	mipi_csi2_write(info, 0x00000002, CSI2_PHY_TST_CTRL0);
 	mipi_csi2_write(info, 0x00010044, CSI2_PHY_TST_CTRL1);
 	mipi_csi2_write(info, 0x00000000, CSI2_PHY_TST_CTRL0);
-	mipi_csi2_write(info, 0x00000022, CSI2_PHY_TST_CTRL1); //849 MHz OV5640 works
+	mipi_csi2_write(info, 0x00000002, CSI2_PHY_TST_CTRL1); // JTS
+	//mipi_csi2_write(info, 0x00000022, CSI2_PHY_TST_CTRL1); //849 MHz OV5640 works
 	//0x42 no sync achieved 150MHz X
 	//0x22 no sync achieved 135MHz X. According to documents should use this
 	//0x02 no sync achieved 123MHz X
@@ -426,6 +427,12 @@ static int mipi_csi2_probe(struct platform_device *pdev)
 	u32 mipi_csi2_dphy_ver;
 	int ret;
 
+	pr_err(">>> @JTS: plat_data->ipu_id    = %d", plat_data->ipu_id);
+	pr_err(">>> @JTS: plat_data->csi_id    = %d", plat_data->csi_id);
+	pr_err(">>> @JTS: plat_data->v_channel = %d", plat_data->v_channel);
+	pr_err(">>> @JTS: plat_data->lanes     = %d", plat_data->lanes);
+	pr_err(">>> @JTS: plat_data->dphy_clk  = %s", plat_data->dphy_clk);
+	pr_err(">>> @JTS: plat_data->pixel_clk = %s", plat_data->pixel_clk);
 	if ((plat_data->ipu_id < 0) || (plat_data->ipu_id > 1) ||
 		(plat_data->csi_id > 1) || (plat_data->v_channel > 3) ||
 		(plat_data->lanes > 4)) {
