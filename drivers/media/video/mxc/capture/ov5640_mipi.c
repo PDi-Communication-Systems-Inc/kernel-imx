@@ -51,16 +51,16 @@
 
 enum ov5640_mode {
         ov5640_mode_MIN = 0,
-/*        ov5640_mode_VGA_640_480 = 0,
+        ov5640_mode_VGA_640_480 = 0,
         ov5640_mode_QVGA_320_240 = 1,
         ov5640_mode_NTSC_720_480 = 2,
-        ov5640_mode_PAL_720_576 = 3,*/
-        ov5640_mode_720P_1280_720 = 0, //was 4
+        ov5640_mode_PAL_720_576 = 3,
+        ov5640_mode_720P_1280_720 = 4, 
 /*        ov5640_mode_1080P_1920_1080 = 5,
         ov5640_mode_QSXGA_2592_1944 = 6,
         ov5640_mode_QCIF_176_144 = 7,
         ov5640_mode_XGA_1024_768 = 8,*/
-        ov5640_mode_MAX = 0,
+        ov5640_mode_MAX = 4,
         ov5640_mode_INIT = 0xff, /*only for sensor init*/
 };
 
@@ -186,7 +186,7 @@ static struct reg_value ov5640_init_setting_30fps_VGA[] = {
 	{0x3a1b, 0x30, 0, 0}, {0x3a1e, 0x26, 0, 0}, {0x3a11, 0x60, 0, 0},
 	{0x3a1f, 0x14, 0, 0}, {0x3008, 0x02, 0, 0}, {0x3c00, 0x04, 0, 300},
 };
-/*
+
 static struct reg_value ov5640_setting_30fps_VGA_640_480[] = {
 
 	{0x3035, 0x14, 0, 0}, {0x3036, 0x38, 0, 0}, {0x3c07, 0x08, 0, 0},
@@ -228,7 +228,7 @@ static struct reg_value ov5640_setting_15fps_VGA_640_480[] = {
 	{0x4001, 0x02, 0, 0}, {0x4004, 0x02, 0, 0}, {0x4713, 0x03, 0, 0},
 	{0x4407, 0x04, 0, 0}, {0x460b, 0x35, 0, 0}, {0x460c, 0x22, 0, 0},
 	{0x3824, 0x02, 0, 0}, {0x5001, 0xa3, 0, 0},
-};*/
+};
 
 static struct reg_value ov5640_setting_30fps_XGA_1024_768[] = {
 
@@ -275,7 +275,7 @@ static struct reg_value ov5640_setting_15fps_XGA_1024_768[] = {
 	{0x3824, 0x02, 0, 0}, {0x5001, 0xa3, 0, 0}, {0x3808, 0x04, 0, 0},
 	{0x3809, 0x00, 0, 0}, {0x380a, 0x03, 0, 0}, {0x380b, 0x00, 0, 100},
 };
-/*
+
 static struct reg_value ov5640_setting_30fps_QVGA_320_240[] = {
 	{0x3035, 0x14, 0, 0}, {0x3036, 0x38, 0, 0}, {0x3c07, 0x08, 0, 0},
 	{0x3c09, 0x1c, 0, 0}, {0x3c0a, 0x9c, 0, 0}, {0x3c0b, 0x40, 0, 0},
@@ -441,7 +441,7 @@ static struct reg_value ov5640_setting_15fps_PAL_720_576[] = {
 	{0x4001, 0x02, 0, 0}, {0x4004, 0x02, 0, 0}, {0x4713, 0x03, 0, 0},
 	{0x4407, 0x04, 0, 0}, {0x460b, 0x35, 0, 0}, {0x460c, 0x22, 0, 0},
 	{0x3824, 0x02, 0, 0}, {0x5001, 0xa3, 0, 0},
-};*/
+};
 
 static struct reg_value ov5640_setting_30fps_720P_1280_720[] = {
 	{0x3008, 0x42, 0, 0},
@@ -586,7 +586,7 @@ static struct reg_value ov5640_setting_15fps_QSXGA_2592_1944[] = {
 
 static struct ov5640_mode_info ov5640_mode_info_data[2][ov5640_mode_MAX + 1] = {
 	{
-		/*{ov5640_mode_VGA_640_480, SUBSAMPLING, 640,  480,
+		{ov5640_mode_VGA_640_480, SUBSAMPLING, 640,  480,
 		ov5640_setting_15fps_VGA_640_480,
 		ARRAY_SIZE(ov5640_setting_15fps_VGA_640_480)},
 		{ov5640_mode_QVGA_320_240, SUBSAMPLING, 320,  240,
@@ -597,7 +597,7 @@ static struct ov5640_mode_info ov5640_mode_info_data[2][ov5640_mode_MAX + 1] = {
 		ARRAY_SIZE(ov5640_setting_15fps_NTSC_720_480)},
 		{ov5640_mode_PAL_720_576, SUBSAMPLING, 720, 576,
 		ov5640_setting_15fps_PAL_720_576,
-		ARRAY_SIZE(ov5640_setting_15fps_PAL_720_576)},*/
+		ARRAY_SIZE(ov5640_setting_15fps_PAL_720_576)},
 		{ov5640_mode_720P_1280_720, SUBSAMPLING, 1280, 720,
 		ov5640_setting_15fps_720P_1280_720,
 		ARRAY_SIZE(ov5640_setting_15fps_720P_1280_720)},
@@ -615,7 +615,7 @@ static struct ov5640_mode_info ov5640_mode_info_data[2][ov5640_mode_MAX + 1] = {
 		ARRAY_SIZE(ov5640_setting_15fps_XGA_1024_768)},*/
 	},
 	{
-		/*{ov5640_mode_VGA_640_480, SUBSAMPLING, 640,  480,
+		{ov5640_mode_VGA_640_480, SUBSAMPLING, 640,  480,
 		ov5640_setting_30fps_VGA_640_480,
 		ARRAY_SIZE(ov5640_setting_30fps_VGA_640_480)},
 		{ov5640_mode_QVGA_320_240, SUBSAMPLING, 320,  240,
@@ -626,7 +626,7 @@ static struct ov5640_mode_info ov5640_mode_info_data[2][ov5640_mode_MAX + 1] = {
 		ARRAY_SIZE(ov5640_setting_30fps_NTSC_720_480)},
 		{ov5640_mode_PAL_720_576, SUBSAMPLING, 720, 576,
 		ov5640_setting_30fps_PAL_720_576,
-		ARRAY_SIZE(ov5640_setting_30fps_PAL_720_576)},*/
+		ARRAY_SIZE(ov5640_setting_30fps_PAL_720_576)},
 		{ov5640_mode_720P_1280_720, SUBSAMPLING, 1280, 720,
 		ov5640_setting_30fps_720P_1280_720,
 		ARRAY_SIZE(ov5640_setting_30fps_720P_1280_720)},
@@ -1510,11 +1510,11 @@ pr_err (">>>> Debug ov5640 init mode: Line: %i", __LINE__);
 
 		/* wait for mipi stable */
 		mipi_reg = mipi_csi2_get_error1(mipi_csi2_info);
-	    pr_err (">>>> @SFC: try:%i csi2 get error1 Line: %i: error: 0x%x", __LINE__, i, mipi_reg);
+	    pr_err (">>>> @SFC: try:%i csi2 get error1 Line: %i: error: 0x%x", i, __LINE__, mipi_reg);
 		pr_err (">>>> >>>>1 @SFC: dphy status reg: 0x%x", mipi_csi2_dphy_status(mipi_csi2_info));
 		while ((mipi_reg != 0x0) && (i < 50)) {
 			mipi_reg = mipi_csi2_get_error1(mipi_csi2_info);
-		    pr_err (">>>> @SFC: try: %i csi2 get error1 Line: %i: error: 0x%x", __LINE__, i,mipi_reg);
+		    pr_err (">>>> @SFC: try: %i csi2 get error1 Line: %i: error: 0x%x", i, __LINE__, mipi_reg);
 			pr_err (">>>> >>>>2 @SFC: dphy status reg: 0x%x", mipi_csi2_dphy_status(mipi_csi2_info));
 			pr_err (">>>> @SFC: ctrl0 status reg: 0x%x", mipi_csi2_get_ctrl0(mipi_csi2_info));
 			pr_err (">>>> @SFC: ctrl1 status reg: 0x%x", mipi_csi2_get_ctrl1(mipi_csi2_info));
