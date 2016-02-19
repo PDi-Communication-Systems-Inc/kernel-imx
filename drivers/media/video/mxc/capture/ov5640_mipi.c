@@ -33,7 +33,7 @@
 #include <media/v4l2-int-device.h>
 #include "mxc_v4l2_capture.h"
 
-#define DUMMY
+//#define DUMMY
 
 #define OV5640_VOLTAGE_ANALOG               2800000
 #define OV5640_VOLTAGE_DIGITAL_CORE         1500000
@@ -1139,10 +1139,9 @@ static void ov5640_set_virtual_channel(int channel)
 	pr_err("channel received from struct: %i", channel);
 #ifndef DUMMY
 	ov5640_read_reg(0x4814, &channel_id);
-#endif
-	pr_err("set_virtual_channel: %i", channel_id);
+	pr_err("ov5640_set_virtual_channel: 0x%x", channel_id);
 	channel_id &= ~(3 << 6);
-#ifndef DUMMY
+	pr_err("ov5640_set_virtual_channel: 0x%x", channel_id);
 	ov5640_write_reg(0x4814, channel_id | (channel << 6));
 #endif
 }
@@ -1495,15 +1494,15 @@ pr_err (">>>> Debug ov5640 init mode: Line: %i", __LINE__);
 		i = 0;
 		/* wait for mipi sensor ready */
 		mipi_reg = mipi_csi2_dphy_status(mipi_csi2_info);
-	        pr_err (">>>> @SFC: 0 try: %i csi2 dphy status: 0x%X", i, mipi_reg);
-		while ((mipi_reg != 0x330) && (i < 10)) { //original == 0x200
+	    pr_err (">>>> @SFC: try: %i csi2 dphy status: 0x%X", i, mipi_reg);
+		while ((mipi_reg == 0x200) && (i < 10)) { //was != 0x3F0
+			msleep(1000);
 			mipi_reg = mipi_csi2_dphy_status(mipi_csi2_info);
-		        pr_err (">>>> @SFC: 1 try:%i csi2 dphy status: 0x%X", i, mipi_reg);
+		    pr_err (">>>> @SFC: try: %i csi2 dphy status: 0x%X", i, mipi_reg);
 			i++;
-			msleep(10);
 		}
 		if (i >= 10) {
-			pr_err("mipi csi2 can not receive sensor clk!\n");
+			pr_err("mipi csi2 can not receive sensor clk (dphy != 0x200)!\n");
 			return -1;
 		}
 
@@ -1511,19 +1510,19 @@ pr_err (">>>> Debug ov5640 init mode: Line: %i", __LINE__);
 
 		/* wait for mipi stable */
 		mipi_reg = mipi_csi2_get_error1(mipi_csi2_info);
-	        pr_err (">>>> @SFC: try:%i csi2 get error1 Line: %i: error: 0x%x", __LINE__, i, mipi_reg);
+	    pr_err (">>>> @SFC: try:%i csi2 get error1 Line: %i: error: 0x%x", __LINE__, i, mipi_reg);
 		pr_err (">>>> >>>>1 @SFC: dphy status reg: 0x%x", mipi_csi2_dphy_status(mipi_csi2_info));
-		while ((mipi_reg != 0x0) && (i < 10)) {
+		while ((mipi_reg != 0x0) && (i < 50)) {
 			mipi_reg = mipi_csi2_get_error1(mipi_csi2_info);
-		        pr_err (">>>> @SFC: try: %i csi2 get error1 Line: %i: error: 0x%x", __LINE__, i,mipi_reg);
+		    pr_err (">>>> @SFC: try: %i csi2 get error1 Line: %i: error: 0x%x", __LINE__, i,mipi_reg);
 			pr_err (">>>> >>>>2 @SFC: dphy status reg: 0x%x", mipi_csi2_dphy_status(mipi_csi2_info));
 			pr_err (">>>> @SFC: ctrl0 status reg: 0x%x", mipi_csi2_get_ctrl0(mipi_csi2_info));
 			pr_err (">>>> @SFC: ctrl1 status reg: 0x%x", mipi_csi2_get_ctrl1(mipi_csi2_info));
 			i++;
-			msleep(10);
+			msleep(100);
 		}
-		if (i >= 10) {
-			pr_err("mipi csi2 can not reveive data correctly!\n");
+		if (i >= 50) {
+			pr_err("mipi csi2 can not receive data correctly (error1 != 0x00)!\n");
 			return -1;
 		}
 	}
