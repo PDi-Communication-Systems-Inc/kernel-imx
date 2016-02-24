@@ -456,6 +456,7 @@ static void mx6q_mipi_powerdown(int powerdown)
 
 static void mx6q_mipi_sensor_io_init(void)
 {
+	printk(KERN_INFO "MIPI sensor IO init");
 	/* Camera reset */
 	gpio_request(AR6MX_MIPICSI_RST, "cam-reset");
 	gpio_direction_output(AR6MX_MIPICSI_RST, 1);

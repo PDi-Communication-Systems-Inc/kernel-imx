@@ -81,7 +81,7 @@ bool mipi_csi2_enable(struct mipi_csi2_info *info)
 
 	unsigned long rate = clk_get_rate(info->dphy_clk);
 
-	pr_err(">>> @SFC: dphy_clk rate: %i", rate);
+	pr_err(">>> @SFC: dphy_clk rate: %lu", rate);
 
 	status = info->mipi_en;
 
@@ -148,6 +148,7 @@ unsigned int mipi_csi2_set_lanes(struct mipi_csi2_info *info)
 	_mipi_csi2_lock(info);
 	mipi_csi2_write(info, info->lanes - 1, CSI2_N_LANES);
 	lanes = mipi_csi2_read(info, CSI2_N_LANES);
+	pr_err ("mipi_csi2_set_lanes() lanes=%i", lanes);
 	_mipi_csi2_unlock(info);
 
 	return lanes;
@@ -292,7 +293,7 @@ int mipi_csi2_pixelclk_enable(struct mipi_csi2_info *info)
 {
 	unsigned long rate = clk_get_rate(info->pixel_clk);
 
-	pr_err(">>>> @SFC: pixel_clk rate: %d", rate);
+	pr_err(">>>> @SFC: pixel_clk rate: %lu", rate);
 
 	return clk_enable(info->pixel_clk);
 }
@@ -428,6 +429,7 @@ static int mipi_csi2_probe(struct platform_device *pdev)
 	u32 mipi_csi2_dphy_ver;
 	int ret;
 
+	pr_err(">>> @JTS: mipi_csi2_probe()");
 	pr_err(">>> @JTS: plat_data->ipu_id    = %d", plat_data->ipu_id);
 	pr_err(">>> @JTS: plat_data->csi_id    = %d", plat_data->csi_id);
 	pr_err(">>> @JTS: plat_data->v_channel = %d", plat_data->v_channel);
@@ -493,6 +495,7 @@ static int mipi_csi2_probe(struct platform_device *pdev)
 	mipi_csi2_dphy_ver = mipi_csi2_read(gmipi_csi2, CSI2_VERSION);
 
 	clk_disable(gmipi_csi2->dphy_clk);
+	pr_err(">>> @JTS: CSI2 DPHY ver = 0x%x", mipi_csi2_dphy_ver);
 
 	platform_set_drvdata(pdev, gmipi_csi2);
 

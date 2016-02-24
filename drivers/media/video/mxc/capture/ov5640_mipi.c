@@ -229,7 +229,7 @@ static struct reg_value ov5640_setting_15fps_VGA_640_480[] = {
 	{0x4407, 0x04, 0, 0}, {0x460b, 0x35, 0, 0}, {0x460c, 0x22, 0, 0},
 	{0x3824, 0x02, 0, 0}, {0x5001, 0xa3, 0, 0},
 };
-
+/*
 static struct reg_value ov5640_setting_30fps_XGA_1024_768[] = {
 
 	{0x3035, 0x14, 0, 0}, {0x3036, 0x38, 0, 0}, {0x3c07, 0x08, 0, 0},
@@ -275,7 +275,7 @@ static struct reg_value ov5640_setting_15fps_XGA_1024_768[] = {
 	{0x3824, 0x02, 0, 0}, {0x5001, 0xa3, 0, 0}, {0x3808, 0x04, 0, 0},
 	{0x3809, 0x00, 0, 0}, {0x380a, 0x03, 0, 0}, {0x380b, 0x00, 0, 100},
 };
-
+*/
 static struct reg_value ov5640_setting_30fps_QVGA_320_240[] = {
 	{0x3035, 0x14, 0, 0}, {0x3036, 0x38, 0, 0}, {0x3c07, 0x08, 0, 0},
 	{0x3c09, 0x1c, 0, 0}, {0x3c0a, 0x9c, 0, 0}, {0x3c0b, 0x40, 0, 0},
@@ -317,7 +317,7 @@ static struct reg_value ov5640_setting_15fps_QVGA_320_240[] = {
 	{0x4407, 0x04, 0, 0}, {0x460b, 0x35, 0, 0}, {0x460c, 0x22, 0, 0},
 	{0x3824, 0x02, 0, 0}, {0x5001, 0xa3, 0, 0},
 };
-
+/*
 static struct reg_value ov5640_setting_30fps_QCIF_176_144[] = {
 	{0x3035, 0x14, 0, 0}, {0x3036, 0x38, 0, 0}, {0x3c07, 0x08, 0, 0},
 	{0x3c09, 0x1c, 0, 0}, {0x3c0a, 0x9c, 0, 0}, {0x3c0b, 0x40, 0, 0},
@@ -358,7 +358,7 @@ static struct reg_value ov5640_setting_15fps_QCIF_176_144[] = {
 	{0x4407, 0x04, 0, 0}, {0x460b, 0x35, 0, 0}, {0x460c, 0x22, 0, 0},
 	{0x3824, 0x02, 0, 0}, {0x5001, 0xa3, 0, 0},
 };
-
+*/
 static struct reg_value ov5640_setting_30fps_NTSC_720_480[] = {
 	{0x3035, 0x12, 0, 0}, {0x3036, 0x38, 0, 0}, {0x3c07, 0x08, 0, 0},
 	{0x3c09, 0x1c, 0, 0}, {0x3c0a, 0x9c, 0, 0}, {0x3c0b, 0x40, 0, 0},
@@ -486,7 +486,7 @@ static struct reg_value ov5640_setting_15fps_720P_1280_720[] = {
 	{0x4407, 0x04, 0, 0}, {0x460b, 0x37, 0, 0}, {0x460c, 0x20, 0, 0},
 	{0x3824, 0x04, 0, 0}, {0x5001, 0x83, 0, 0},
 };
-
+/*
 static struct reg_value ov5640_setting_30fps_1080P_1920_1080[] = {
 	{0x3008, 0x42, 0, 0},
 	{0x3035, 0x21, 0, 0}, {0x3036, 0x54, 0, 0}, {0x3c07, 0x08, 0, 0},
@@ -559,7 +559,7 @@ static struct reg_value ov5640_setting_15fps_1080P_1920_1080[] = {
 	{0x460b, 0x37, 0, 0}, {0x460c, 0x20, 0, 0}, {0x3824, 0x04, 0, 0},
 	{0x4005, 0x1a, 0, 0}, {0x3008, 0x02, 0, 0}, {0x3503, 0, 0, 0},
 };
-/*
+
 static struct reg_value ov5640_setting_15fps_QSXGA_2592_1944[] = {
 	{0x4202, 0x0f, 0, 0},	// stream off the sensor
 	{0x3820, 0x40, 0, 0}, {0x3821, 0x06, 0, 0}, //disable flip
@@ -1136,12 +1136,12 @@ static void ov5640_set_virtual_channel(int channel)
 
 	/* Bypass hack */
 	/* everything done at camera */
-	pr_err("channel received from struct: %i", channel);
+	pr_err("virtual channel received from struct: %i", channel);
 #ifndef DUMMY
 	ov5640_read_reg(0x4814, &channel_id);
-	pr_err("ov5640_set_virtual_channel: 0x%x", channel_id);
+	pr_err("ov5640_set_virtual_channel() read@0x4814:  0x%x", channel_id);
 	channel_id &= ~(3 << 6);
-	pr_err("ov5640_set_virtual_channel: 0x%x", channel_id);
+	pr_err("ov5640_set_virtual_channel() write@0x4814: 0x%x", channel_id);
 	ov5640_write_reg(0x4814, channel_id | (channel << 6));
 #endif
 }
@@ -1383,9 +1383,12 @@ static int ov5640_init_mode(enum ov5640_frame_rate frame_rate,
 	u32 mipi_reg, msec_wait4stable = 0;
 	enum ov5640_downsize_mode dn_mode, orig_dn_mode;
 
-	pr_err ("Trying mode : %i", mode);
-	pr_err (">>>> Debug ov5640 init mode: Line: %i", __LINE__);
-
+	pr_err ("\n\nov5640_init_mode: build date = %s %s", __DATE__, __TIME__);
+	pr_err ("ov5640_init_mode: frame rate=%i, mode=%i, orig_mode=%i", frame_rate, mode, orig_mode);
+//  if (mode != ov5640_mode_INIT) {
+//  	pr_err ("Forcing mode=4");
+//  	mode=4;
+//  }
 	if ((mode > ov5640_mode_MAX || mode < ov5640_mode_MIN)
 		&& (mode != ov5640_mode_INIT)) {
 		pr_err("Wrong ov5640 mode detected!\n");
@@ -1404,13 +1407,15 @@ pr_err (">>>> Debug ov5640 init mode: Line: %i", __LINE__);
 		}
 
 		if (mipi_csi2_get_status(mipi_csi2_info)) {
-pr_err (">>>> Debug ov5640 init mode: Line: %i", __LINE__);
 			mipi_csi2_set_lanes(mipi_csi2_info);
 
 			/*Only reset MIPI CSI2 HW at sensor initialize*/
 			if (mode == ov5640_mode_INIT) {
-pr_err (">>>> Debug ov5640 init mode: Line: %i", __LINE__);
+pr_err (">>>> ov5640_init_mode() about to reset: Line: %i", __LINE__);
+				msleep(3000);
 				mipi_csi2_reset(mipi_csi2_info);
+pr_err (">>>> ov5640_init_mode() done reset: Line: %i", __LINE__);
+				msleep(3000);
 			}
 
 			if (ov5640_data.pix.pixelformat == V4L2_PIX_FMT_UYVY) {
@@ -1436,8 +1441,8 @@ pr_err (">>>> Debug ov5640 init mode: Line: %i", __LINE__);
 	orig_dn_mode = ov5640_mode_info_data[frame_rate][orig_mode].dn_mode;
 	if (mode == ov5640_mode_INIT) {
 pr_err (">>>> Debug ov5640 init mode: Line: %i", __LINE__);
-                pModeSetting = ov5640_init_setting_30fps_VGA;
-                ArySize = ARRAY_SIZE(ov5640_init_setting_30fps_VGA);
+        pModeSetting = ov5640_init_setting_30fps_VGA;
+        ArySize = ARRAY_SIZE(ov5640_init_setting_30fps_VGA);
 
 		ov5640_data.pix.width = 640;
 		ov5640_data.pix.height = 480;
@@ -1465,11 +1470,14 @@ pr_err (">>>> Debug ov5640 init mode: Line: %i", __LINE__);
 pr_err (">>>> Debug ov5640 init mode: Line: %i", __LINE__);
 	if (retval < 0)
 		goto err;
-pr_err (">>>> Debug ov5640 init mode: Line: %i", __LINE__);
+pr_err (">>>> About to set virt channel: Line: %i", __LINE__);
 //	OV5640_set_AE_target(AE_Target);
 //	OV5640_get_light_freq();
 //	OV5640_set_bandingfilter();
+	msleep(3000);
 	ov5640_set_virtual_channel(ov5640_data.csi);
+pr_err (">>>> Done set virt channel: Line: %i", __LINE__);
+	msleep(3000);
 
 	/* add delay to wait for sensor stable */
 	//if (mode == ov5640_mode_QSXGA_2592_1944) {
@@ -1495,14 +1503,15 @@ pr_err (">>>> Debug ov5640 init mode: Line: %i", __LINE__);
 		/* wait for mipi sensor ready */
 		mipi_reg = mipi_csi2_dphy_status(mipi_csi2_info);
 	    pr_err (">>>> @SFC: try: %i csi2 dphy status: 0x%X", i, mipi_reg);
-		while ((mipi_reg == 0x200) && (i < 10)) { //was != 0x3F0
+msleep(10000);
+		while ((mipi_reg != 0x330) && (i < 10)) { //was == 0x200
 			msleep(1000);
 			mipi_reg = mipi_csi2_dphy_status(mipi_csi2_info);
 		    pr_err (">>>> @SFC: try: %i csi2 dphy status: 0x%X", i, mipi_reg);
 			i++;
 		}
 		if (i >= 10) {
-			pr_err("mipi csi2 can not receive sensor clk (dphy != 0x200)!\n");
+			pr_err("mipi csi2 can not receive sensor clk (dphy != 0x330)!\n");
 			return -1;
 		}
 
@@ -1512,21 +1521,24 @@ pr_err (">>>> Debug ov5640 init mode: Line: %i", __LINE__);
 		mipi_reg = mipi_csi2_get_error1(mipi_csi2_info);
 	    pr_err (">>>> @SFC: try:%i csi2 get error1 Line: %i: error: 0x%x", i, __LINE__, mipi_reg);
 		pr_err (">>>> >>>>1 @SFC: dphy status reg: 0x%x", mipi_csi2_dphy_status(mipi_csi2_info));
+		//pr_err (">>>> @SFC: ctrl0 status reg: 0x%x", mipi_csi2_get_ctrl0(mipi_csi2_info));
+		//pr_err (">>>> @SFC: ctrl1 status reg: 0x%x", mipi_csi2_get_ctrl1(mipi_csi2_info));
 		while ((mipi_reg != 0x0) && (i < 50)) {
+			msleep(100);
 			mipi_reg = mipi_csi2_get_error1(mipi_csi2_info);
 		    pr_err (">>>> @SFC: try: %i csi2 get error1 Line: %i: error: 0x%x", i, __LINE__, mipi_reg);
 			pr_err (">>>> >>>>2 @SFC: dphy status reg: 0x%x", mipi_csi2_dphy_status(mipi_csi2_info));
-			pr_err (">>>> @SFC: ctrl0 status reg: 0x%x", mipi_csi2_get_ctrl0(mipi_csi2_info));
-			pr_err (">>>> @SFC: ctrl1 status reg: 0x%x", mipi_csi2_get_ctrl1(mipi_csi2_info));
+			//pr_err (">>>> @SFC: ctrl0 status reg: 0x%x", mipi_csi2_get_ctrl0(mipi_csi2_info));
+			//pr_err (">>>> @SFC: ctrl1 status reg: 0x%x", mipi_csi2_get_ctrl1(mipi_csi2_info));
 			i++;
-			msleep(100);
 		}
 		if (i >= 50) {
 			pr_err("mipi csi2 can not receive data correctly (error1 != 0x00)!\n");
 			return -1;
 		}
 	}
-pr_err (">>>> Debug ov5640 init mode: Line: %i", __LINE__);
+msleep(10000);
+pr_err ("End of ov5640_init_mode() Line: %i", __LINE__);
 err:
 	return retval;
 }
