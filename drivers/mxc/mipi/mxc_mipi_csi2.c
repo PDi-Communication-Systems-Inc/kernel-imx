@@ -148,7 +148,7 @@ unsigned int mipi_csi2_set_lanes(struct mipi_csi2_info *info)
 	_mipi_csi2_lock(info);
 	mipi_csi2_write(info, info->lanes - 1, CSI2_N_LANES);
 	lanes = mipi_csi2_read(info, CSI2_N_LANES);
-	pr_err ("mipi_csi2_set_lanes() lanes=%i", lanes);
+	pr_err ("mipi_csi2_read() lanes=%i  (0 based)", lanes);
 	_mipi_csi2_unlock(info);
 
 	return lanes;
@@ -332,7 +332,6 @@ int mipi_csi2_reset(struct mipi_csi2_info *info)
 	mipi_csi2_write(info, 0x00010044, CSI2_PHY_TST_CTRL1);
 	mipi_csi2_write(info, 0x00000000, CSI2_PHY_TST_CTRL0);
 	mipi_csi2_write(info, 0x00000014, CSI2_PHY_TST_CTRL1); // original 0x14 works with OV5640 - JTS
-	//mipi_csi2_write(info, 0x00000002, CSI2_PHY_TST_CTRL1); // JTS
 	//mipi_csi2_write(info, 0x00000022, CSI2_PHY_TST_CTRL1); //849 MHz OV5640 works
 	//0x42 no sync achieved 150MHz X
 	//0x22 no sync achieved 135MHz X. According to documents should use this

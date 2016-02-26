@@ -33,7 +33,7 @@
 #include <media/v4l2-int-device.h>
 #include "mxc_v4l2_capture.h"
 
-//#define DUMMY
+#define DUMMY
 
 #define OV5640_VOLTAGE_ANALOG               2800000
 #define OV5640_VOLTAGE_DIGITAL_CORE         1500000
@@ -1245,8 +1245,8 @@ static int ov5640_change_mode_exposure_calc(enum ov5640_frame_rate frame_rate,
 	/* get average */
 #ifndef DUMMY
 	ov5640_read_reg(0x56a1, &average);
-#endif
 	pr_err("get average val: %i", average);
+#endif
 
 	/* turn off night mode for capture */
 	OV5640_set_night_mode();
@@ -1383,8 +1383,8 @@ static int ov5640_init_mode(enum ov5640_frame_rate frame_rate,
 	u32 mipi_reg, msec_wait4stable = 0;
 	enum ov5640_downsize_mode dn_mode, orig_dn_mode;
 
-	pr_err ("\n\nov5640_init_mode: build date = %s %s", __DATE__, __TIME__);
-	pr_err ("ov5640_init_mode: frame rate=%i, mode=%i, orig_mode=%i", frame_rate, mode, orig_mode);
+	pr_err ("\n\n>>>> ov5640_init_mode: build date = %s %s", __DATE__, __TIME__);
+	pr_err (">>>> ov5640_init_mode: frame rate=%i, mode=%i, orig_mode=%i", frame_rate, mode, orig_mode);
 //  if (mode != ov5640_mode_INIT) {
 //  	pr_err ("Forcing mode=4");
 //  	mode=4;
@@ -1411,11 +1411,7 @@ pr_err (">>>> Debug ov5640 init mode: Line: %i", __LINE__);
 
 			/*Only reset MIPI CSI2 HW at sensor initialize*/
 			if (mode == ov5640_mode_INIT) {
-pr_err (">>>> ov5640_init_mode() about to reset: Line: %i", __LINE__);
-				msleep(3000);
 				mipi_csi2_reset(mipi_csi2_info);
-pr_err (">>>> ov5640_init_mode() done reset: Line: %i", __LINE__);
-				msleep(3000);
 			}
 
 			if (ov5640_data.pix.pixelformat == V4L2_PIX_FMT_UYVY) {
@@ -1470,14 +1466,10 @@ pr_err (">>>> Debug ov5640 init mode: Line: %i", __LINE__);
 pr_err (">>>> Debug ov5640 init mode: Line: %i", __LINE__);
 	if (retval < 0)
 		goto err;
-pr_err (">>>> About to set virt channel: Line: %i", __LINE__);
 //	OV5640_set_AE_target(AE_Target);
 //	OV5640_get_light_freq();
 //	OV5640_set_bandingfilter();
-	msleep(3000);
 	ov5640_set_virtual_channel(ov5640_data.csi);
-pr_err (">>>> Done set virt channel: Line: %i", __LINE__);
-	msleep(3000);
 
 	/* add delay to wait for sensor stable */
 	//if (mode == ov5640_mode_QSXGA_2592_1944) {
@@ -1503,8 +1495,8 @@ pr_err (">>>> Debug ov5640 init mode: Line: %i", __LINE__);
 		/* wait for mipi sensor ready */
 		mipi_reg = mipi_csi2_dphy_status(mipi_csi2_info);
 	    pr_err (">>>> @SFC: try: %i csi2 dphy status: 0x%X", i, mipi_reg);
-msleep(10000);
 		while ((mipi_reg != 0x330) && (i < 10)) { //was == 0x200
+		//while ((mipi_reg != 0x330)) { //was == 0x200
 			msleep(1000);
 			mipi_reg = mipi_csi2_dphy_status(mipi_csi2_info);
 		    pr_err (">>>> @SFC: try: %i csi2 dphy status: 0x%X", i, mipi_reg);
@@ -1521,8 +1513,6 @@ msleep(10000);
 		mipi_reg = mipi_csi2_get_error1(mipi_csi2_info);
 	    pr_err (">>>> @SFC: try:%i csi2 get error1 Line: %i: error: 0x%x", i, __LINE__, mipi_reg);
 		pr_err (">>>> >>>>1 @SFC: dphy status reg: 0x%x", mipi_csi2_dphy_status(mipi_csi2_info));
-		//pr_err (">>>> @SFC: ctrl0 status reg: 0x%x", mipi_csi2_get_ctrl0(mipi_csi2_info));
-		//pr_err (">>>> @SFC: ctrl1 status reg: 0x%x", mipi_csi2_get_ctrl1(mipi_csi2_info));
 		while ((mipi_reg != 0x0) && (i < 50)) {
 			msleep(100);
 			mipi_reg = mipi_csi2_get_error1(mipi_csi2_info);
@@ -1537,8 +1527,7 @@ msleep(10000);
 			return -1;
 		}
 	}
-msleep(10000);
-pr_err ("End of ov5640_init_mode() Line: %i", __LINE__);
+pr_err (">>>> End of ov5640_init_mode() Line: %i", __LINE__);
 err:
 	return retval;
 }
