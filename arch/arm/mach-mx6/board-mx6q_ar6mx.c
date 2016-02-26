@@ -1060,7 +1060,7 @@ static struct mipi_csi2_platform_data mipi_csi2_pdata = {
 	.ipu_id	 = 0,
 	.csi_id = 1,
 	.v_channel = 0,
-	.lanes = 2,
+	.lanes = 4,
 	.dphy_clk = "mipi_pllref_clk",
 	.pixel_clk = "emi_clk",
 };

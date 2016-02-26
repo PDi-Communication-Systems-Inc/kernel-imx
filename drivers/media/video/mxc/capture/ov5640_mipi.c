@@ -1495,15 +1495,15 @@ pr_err (">>>> Debug ov5640 init mode: Line: %i", __LINE__);
 		/* wait for mipi sensor ready */
 		mipi_reg = mipi_csi2_dphy_status(mipi_csi2_info);
 	    pr_err (">>>> @SFC: try: %i csi2 dphy status: 0x%X", i, mipi_reg);
-		while ((mipi_reg != 0x330) && (i < 10)) { //was == 0x200
+		while ((mipi_reg != 0x3F0) && (i < 20)) { //was == 0x200
 		//while ((mipi_reg != 0x330)) { //was == 0x200
 			msleep(1000);
 			mipi_reg = mipi_csi2_dphy_status(mipi_csi2_info);
 		    pr_err (">>>> @SFC: try: %i csi2 dphy status: 0x%X", i, mipi_reg);
 			i++;
 		}
-		if (i >= 10) {
-			pr_err("mipi csi2 can not receive sensor clk (dphy != 0x330)!\n");
+		if (i >= 20) {
+			pr_err("mipi csi2 can not receive sensor clk (dphy != 0x3F0)!\n");
 			return -1;
 		}
 
