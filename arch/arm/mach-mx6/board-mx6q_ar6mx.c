@@ -135,7 +135,7 @@
 #define AR6MX_ANDROID_PWRSTATE        AR6MX_TTL_DO0
 #define AR6MX_INTERNAL_SPK_ENABLE     AR6MX_TTL_DO1
 
-/* PDi defined GPIO for OV5640 Camera on CSI MIPI CN4 port 
+/* PDi defined GPIO for DS90Ub740 OV5640 Camera on CSI MIPI CN4 port 
 
    Remember to use iomux-mx6q.h to look up mapping */
 
@@ -599,7 +599,7 @@ static struct i2c_board_info mxc_i2c0_board_info[] __initdata = {
         },   
 
         {    
-                I2C_BOARD_INFO("ov5640_mipi", 0x3c),
+                I2C_BOARD_INFO("ov5640_mipi", 0x2c),
 		.platform_data = (void *)&mipi_csi2_data,
         },   
 };

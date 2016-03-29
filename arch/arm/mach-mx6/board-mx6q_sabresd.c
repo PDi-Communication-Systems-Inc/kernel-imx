@@ -812,8 +812,8 @@ static struct i2c_board_info mxc_i2c0_board_info[] __initdata = {
 		I2C_BOARD_INFO("wm89**", 0x1a),
 	},
 	{
-		I2C_BOARD_INFO("ov564x", 0x3c),
-		.platform_data = (void *)&camera_data,
+		I2C_BOARD_INFO("ov564x", 0x2c),            //JAD was 3C, now 2C for TI
+		.platform_data = (void *)&camera_data,     //DS90ub740
 	},
 	{
 		I2C_BOARD_INFO("mma8x5x", 0x1c),
