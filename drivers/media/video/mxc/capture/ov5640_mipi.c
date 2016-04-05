@@ -1385,8 +1385,8 @@ static int ov5640_init_mode(enum ov5640_frame_rate frame_rate,
 	pr_err ("\n\n>>>> ov5640_init_mode: build date = %s %s", __DATE__, __TIME__);
 	pr_err (">>>> ov5640_init_mode: frame rate=%i, mode=%i, orig_mode=%i", frame_rate, mode, orig_mode);
 
-    pModeSetting = ub940_init_setting;         				      //New for LVDS-CSI2
-    ArySize = ARRAY_SIZE(ub940_init_setting);                     //
+    pModeSetting = ub940_1366x768_setting;         				  // was ub940_init_setting
+    ArySize = ARRAY_SIZE(ub940_1366x768_setting);                 // was ub940_init_setting
     retval = ov5640_download_firmware(pModeSetting, ArySize);     //
 
 //	if ((mode > ov5640_mode_MAX || mode < ov5640_mode_MIN)
@@ -1437,8 +1437,8 @@ static int ov5640_init_mode(enum ov5640_frame_rate frame_rate,
                 pModeSetting = ov5640_init_setting_30fps_VGA;
                 ArySize = ARRAY_SIZE(ov5640_init_setting_30fps_VGA);
 
-		ov5640_data.pix.width  = 640;
-		ov5640_data.pix.height = 480;
+		ov5640_data.pix.width  = 640;   // was 640
+		ov5640_data.pix.height = 480;   // was 480
 //        retval = ov5640_download_firmware(pModeSetting, ArySize);
 		if (retval < 0){
 			goto err;
