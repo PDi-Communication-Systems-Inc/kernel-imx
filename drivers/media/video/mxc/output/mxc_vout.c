@@ -2162,7 +2162,7 @@ static struct platform_driver mxc_vout_driver = {
 static int __init mxc_vout_init(void)
 {
 	if (platform_driver_register(&mxc_vout_driver) != 0) {
-		printk(KERN_ERR VOUT_NAME ":Could not register Video driver\n");
+//		printk(KERN_ERR VOUT_NAME ":Could not register Video driver\n");
 		return -EINVAL;
 	}
 	return 0;

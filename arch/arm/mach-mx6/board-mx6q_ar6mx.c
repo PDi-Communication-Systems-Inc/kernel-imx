@@ -478,7 +478,7 @@ static void mx6q_mipi_sensor_io_init(void)
 static struct fsl_mxc_camera_platform_data mipi_csi2_data = {
 	.mclk = 24000000,
 	.mclk_source = 0,
-	.csi = 1,
+	.csi = 1,                                          //JAD was a 1
 	.io_init = mx6q_mipi_sensor_io_init,
 	.pwdn = mx6q_mipi_powerdown,
 };
@@ -598,10 +598,10 @@ static struct i2c_board_info mxc_i2c0_board_info[] __initdata = {
                 I2C_BOARD_INFO("wm8960", 0x1a),
         },   
 
-        {    
-                I2C_BOARD_INFO("ov5640_mipi", 0x2c),
-		.platform_data = (void *)&mipi_csi2_data,
-        },   
+        {                                                 //JAD
+                I2C_BOARD_INFO("ov5640_mipi", 0x2c),      //JAD
+		.platform_data = (void *)&mipi_csi2_data,         //JAD
+        },                                                //JAD
 };
 
 

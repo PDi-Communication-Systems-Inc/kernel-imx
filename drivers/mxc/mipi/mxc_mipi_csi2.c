@@ -81,7 +81,7 @@ bool mipi_csi2_enable(struct mipi_csi2_info *info)
 
 	unsigned long rate = clk_get_rate(info->dphy_clk);
 
-	pr_err(">>> @SFC: dphy_clk rate: %lu", rate);
+	pr_err("\n>>> @JAD: mipi_csi2_enable(): dphy_clk rate: %lu", rate);
 
 	status = info->mipi_en;
 
@@ -148,7 +148,7 @@ unsigned int mipi_csi2_set_lanes(struct mipi_csi2_info *info)
 	_mipi_csi2_lock(info);
 	mipi_csi2_write(info, info->lanes - 1, CSI2_N_LANES);
 	lanes = mipi_csi2_read(info, CSI2_N_LANES);
-	pr_err ("mipi_csi2_read() lanes=%i  (0 based)", lanes);
+	pr_err (">>> @JAD: EXPORT_SYMBOL(): mipi_csi2_read(): lanes=%i  (0 based)", lanes);
 	_mipi_csi2_unlock(info);
 
 	return lanes;
@@ -293,7 +293,7 @@ int mipi_csi2_pixelclk_enable(struct mipi_csi2_info *info)
 {
 	unsigned long rate = clk_get_rate(info->pixel_clk);
 
-	pr_err(">>>> @SFC: pixel_clk rate: %lu", rate);
+	pr_err(">>> @JAD: EXPORT_SYMBOL(): pixel_clk rate: %lu", rate);
 
 	return clk_enable(info->pixel_clk);
 }
@@ -331,7 +331,9 @@ int mipi_csi2_reset(struct mipi_csi2_info *info)
 	mipi_csi2_write(info, 0x00000002, CSI2_PHY_TST_CTRL0);
 	mipi_csi2_write(info, 0x00010044, CSI2_PHY_TST_CTRL1);
 	mipi_csi2_write(info, 0x00000000, CSI2_PHY_TST_CTRL0);
-	mipi_csi2_write(info, 0x00000014, CSI2_PHY_TST_CTRL1); // original 0x14 works with OV5640 - JTS
+	mipi_csi2_write(info, 0x00000014, CSI2_PHY_TST_CTRL1);   // original 0x14 works with OV5640 - JTS
+	                                                         // (doesn't work) 0x24
+															 // (does work)    0x14,0x34,0x54,0x4a,0x74
 	//mipi_csi2_write(info, 0x00000022, CSI2_PHY_TST_CTRL1); //849 MHz OV5640 works
 	//0x42 no sync achieved 150MHz X
 	//0x22 no sync achieved 135MHz X. According to documents should use this
@@ -437,7 +439,7 @@ static int mipi_csi2_probe(struct platform_device *pdev)
 	pr_err(">>> @JTS: plat_data->pixel_clk = %s", plat_data->pixel_clk);
 	if ((plat_data->ipu_id < 0) || (plat_data->ipu_id > 1) ||
 		(plat_data->csi_id > 1) || (plat_data->v_channel > 3) ||
-		(plat_data->lanes > 4)) {
+		(plat_data->lanes  > 4)) {
 		dev_err(&pdev->dev, "invalid param for mimp csi2!\n");
 		return -EINVAL;
 	}

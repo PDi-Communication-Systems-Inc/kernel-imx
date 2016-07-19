@@ -128,7 +128,7 @@ static struct v4l2_input mxc_capture_inputs[MXC_V4L2_CAPTURE_NUM_INPUTS] = {
  */
 typedef enum {
 	TV_NTSC = 0,		/*!< Locked on (M) NTSC video signal. */
-	TV_PAL,			/*!< (B, G, H, I, N)PAL video signal. */
+	TV_PAL,			    /*!< (B, G, H, I, N)PAL video signal. */
 	TV_NOT_LOCKED,		/*!< Not locked on a signal. */
 } video_fmt_idx;
 
