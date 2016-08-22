@@ -157,9 +157,9 @@ MODULE_PARM_DESC(macaddr, "FEC Ethernet MAC address");
 
 /* The FEC stores dest/src/type, data, and checksum for receive packets.
  */
-#define PKT_MAXBUF_SIZE		1518
+#define PKT_MAXBUF_SIZE		1534  /* 1518 */
 #define PKT_MINBUF_SIZE		64
-#define PKT_MAXBLR_SIZE		1520
+#define PKT_MAXBLR_SIZE		1536 /* 1520 */
 
 /* Pause frame feild and FIFO threshold */
 #define FEC_ENET_FCE		(1 << 5)
@@ -1677,6 +1677,12 @@ fec_restart(struct net_device *dev, int duplex)
 		writel(OPT_FRAME_SIZE | 0x06, fep->hwp + FEC_R_CNTRL);
 		writel(0x0, fep->hwp + FEC_X_CNTRL);
 	}
+#ifdef FEC_FTRL
+	/* Fix from Boundary Devices applied by JTS 8/15/2016 */
+	/* fec: stop the "rcv is not +last, " error messages */
+	/* https://github.com/boundarydevices/linux-imx6/commit/49fe4550243cd04f4f734dcc56bd262628cdc9dc */
+	writel(PKT_MAXBUF_SIZE, fep->hwp + FEC_FTRL);
+#endif
 	fep->full_duplex = duplex;
 
 	/* Set MII speed */
