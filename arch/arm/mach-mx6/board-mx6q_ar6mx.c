@@ -251,10 +251,6 @@ static void __init imx6q_add_android_device_buttons(void)
 	}
 }
 
-
-
-
-
 static int plt_sd_pad_change(unsigned int index, int clock)
 {
 	/* LOW speed is the default state of SD pads */
