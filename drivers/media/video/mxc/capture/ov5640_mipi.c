@@ -33,391 +33,230 @@
 #include <media/v4l2-int-device.h>
 #include "mxc_v4l2_capture.h"
 
-#define MIN_FPS 15
-#define MAX_FPS 30			                 // JAD was 30
-#define DEFAULT_FPS 30		                 // JAD was 30
+// runtime parameters
+int xres = 1360;
+module_param(xres, int, 0);
+int yres = 768;
+module_param(yres, int, 0);
+int pgon = 1;
+module_param(pgon, int, 0);
 
-#define OV5640_XCLK_MIN 6000000
-#define OV5640_XCLK_MAX 24000000             // JAD was 24000000
+#define DS90UB940_XCLK_MIN 6000000
+#define DS90UB940_XCLK_MAX 24000000             // JAD was 24000000
 
-// #define OV5640_CHIP_ID_HIGH_BYTE	0x300A
-// #define OV5640_CHIP_ID_LOW_BYTE		0x300B
+// ds90ub940 registers
+#define UB9XX_RESET		0x01
+#define UB9XX_MAILBOX_18	0x18
+#define UB9XX_PGCTL		0x64
+#define UB9XX_PGCFG		0x65
+#define UB9XX_PGIA		0x66
+#define UB9XX_PGID		0x67
+#define UB9XX_CSICFG1		0x6b
+#define UB9XX_CSIIA		0x6c
+#define UB9XX_CSIID		0x6d
 
-enum ov5640_mode {
-        ov5640_mode_MIN                 = 0,
-        ov5640_mode_VGA_640_480         = 0,
-        ov5640_mode_LCD_1366_768        = 1,  //JAD change?
- //       ov5640_mode_QVGA_320_240      = 1,
- //       ov5640_mode_NTSC_720_480      = 2,
- //       ov5640_mode_PAL_720_576       = 3,
- //       ov5640_mode_720P_1280_720     = 4, 
- //       ov5640_mode_1080P_1920_1080   = 5,
- //       ov5640_mode_QSXGA_2592_1944   = 6,
- //       ov5640_mode_QCIF_176_144      = 7,
-        ov5640_mode_XGA_1366_768024     = 2,  // was ov5640_mode_XGA_1024_768
-        ov5640_mode_MAX                 = 2,  // was 4
-        ov5640_mode_INIT                = 0xff, /*only for sensor init*/
-};
+// Pattern Generator Indirect registers
+#define UB9XX_SET_PG_INDIRECT(reg, val) {UB9XX_PGIA, (reg), 0, 0}, {UB9XX_PGID, (val), 0, 0}
 
-enum ov5640_frame_rate {
-	ov5640_15_fps,
-	ov5640_30_fps,
-	ov5640_60_fps			// JAD was 30
-};
+#define UB9XX_PGCDC		0x03
+#define UB9XX_PGTFS1		0x04
+#define UB9XX_PGTFS2		0x05
+#define UB9XX_PGTFS3		0x06
+#define UB9XX_PGAFS1		0x07
+#define UB9XX_PGAFS2		0x08
+#define UB9XX_PGAFS3		0x09
+#define UB9XX_PGHSW		0x0a
+#define UB9XX_PGVSW		0x0b
+#define UB9XX_PGHBP		0x0c
+#define UB9XX_PGVBP		0x0d
+#define UB9XX_PGSC		0x0e
 
-/* image size under 1280 * 960 are SUBSAMPLING
- * image size upper 1280 * 960 are SCALING
- */
-enum ov5640_downsize_mode {
-	SUBSAMPLING,
-	SCALING,
-};
+// CSI Indirect registers
+#define UB9XX_CSI_VC_ID		0x2e
 
 struct reg_value {
-	u16 u16RegAddr; 
-	u8  u8Val;
-	u8  u8Mask;
-	u32 u32Delay_ms;
+	u8	reg; 
+	u8	val;
+	u8	mask;
+	u32	delayMs;
 };
-
-struct ov5640_mode_info {
-	enum ov5640_mode mode;
-	enum ov5640_downsize_mode dn_mode;
-	u32 width;
-	u32 height;
-	struct reg_value *init_data_ptr;
-	u32 init_data_size;
-};
-
-//
-// Maintains the information on the current state of the sensor.
-//
-static struct sensor_data ov5640_data;
 
 //
 // JAD DS90ub740 Init Settings - out of reset - feed through
 // 0x0018 is a general puropse mailbox location for testing 
 // reads and writes.  CSI indirect address = 0x6c, data=0x6d, 
 // For RGB888 instead of YUV422, change 0x006b from 0x50 to 0x00
-// For Stripe bars instead of sequence, 0x0064, bit 2=1 (11->15)
-static struct reg_value ub940_init_setting[] = {
+static struct reg_value ub940_default_setting[] = {
 
-    {0x0001, 0x02, 0, 0},                                              // Reset the part
-	{0x006b, 0x50, 0, 0},{0x006c, 0x2e, 0, 0}, {0x006d, 0x40, 0, 0},   // Virtual Channel ID=1, YUV422 
-                                                                       // Set Pattern Generator (indirect Registers)    
-/*	{0x0066, 0x0e, 0, 0}, {0x0067, 0x02, 0, 0}, 
-	{0x0066, 0x0e, 0, 0}, {0x0067, 0x02, 0, 0},                        
-	{0x0066, 0x04, 0, 0}, {0x0067, 0x00, 0, 0}, 
-	{0x0066, 0x05, 0, 0}, {0x0067, 0xb7, 0, 0},                        
- 	{0x0066, 0x07, 0, 0}, {0x0067, 0x50, 0, 0}, 
-	{0x0066, 0x08, 0, 0}, {0x0067, 0x05, 0, 0},                        
- 	{0x0066, 0x0a, 0, 0}, {0x0067, 0x70, 0, 0}, 
-	{0x0066, 0x0c, 0, 0}, {0x0067, 0xff, 0, 0},                        
- 	{0x0066, 0x05, 0, 0}, {0x0067, 0xb7, 0, 0}, 
-	{0x0066, 0x06, 0, 0}, {0x0067, 0x31, 0, 0},                        
- 	{0x0066, 0x08, 0, 0}, {0x0067, 0x05, 0, 0}, 
-	{0x0066, 0x09, 0, 0}, {0x0067, 0x30, 0, 0},                        
- 	{0x0066, 0x0b, 0, 0}, {0x0067, 0x06, 0, 0}, 
-	{0x0066, 0x0d, 0, 0}, {0x0067, 0x12, 0, 0},                        
-          
-    {0x0068, 0x01, 0, 0}, {0x0068, 0x11, 0, 0}, {0x0068, 0x21, 0, 0},  // Sequence to turn on pattern generator.
-	{0x0068, 0x31, 0, 0}, {0x0065, 0x04, 0, 0}, {0x0068, 0x01, 0, 0},  // Turn Pat Gen on
-	{0x0068, 0x11, 0, 0}, {0x0068, 0x21, 0, 0}, {0x0068, 0x31, 0, 0},  // Empty
-
-    {0x0068, 0x31, 0, 0}, {0x0018, 0x00, 0, 0}, {0x0065, 0x05, 0, 0},  // Turn Pat Gen on
-    {0x0039, 0x02, 0, 0}, {0x0064, 0x11, 0, 0}, {0x0066, 0x04, 0, 0},  // 
-    {0x0066, 0x05, 0, 0}, {0x0066, 0x05, 0, 0}, {0x0066, 0x06, 0, 0},  // 
-	{0x0066, 0x03, 0, 0}, {0x0068, 0x01, 0, 0}, {0x0068, 0x11, 0, 0},  // 
-	{0x0068, 0x21, 0, 0}, {0x0068, 0x31, 0, 0}, {0x0018, 0x00, 0, 0},  //       
-*/
+	// reset the part
+	{UB9XX_RESET, 0x02, 0, 0},
+	// virtual channel ID=1 (uses indirect register access)
+	{UB9XX_CSIIA, UB9XX_CSI_VC_ID}, {UB9XX_CSIID, 0x40, 0, 0},
+	// YUV422 output format
+	{UB9XX_CSICFG1, 0x50, 0, 0},
 };
 
-static struct reg_value ub940_640x480_setting[] = {
-    {0x0001, 0x02, 0, 0},                                              // Reset the part
-	{0x006c, 0x2e, 0, 0}, {0x006d, 0x40, 0, 0}, {0x006b, 0x50, 0, 0},  // Virtual Channel ID=1, YUV422 
-                                                                       // Set Pattern Generator (indirect Registers)    
-	{0x0066, 0x07, 0, 0}, {0x0067, 0x80, 0, 0},                         
-    {0x0066, 0x08, 0, 0}, {0x0067, 0x02, 0, 0},                        
-	{0x0066, 0x08, 0, 0}, {0x0067, 0x02, 0, 0},                        
-	{0x0066, 0x09, 0, 0}, {0x0067, 0x1e, 0, 0},   
-	{0x0066, 0x0c, 0, 0}, {0x0067, 0x28, 0, 0},
-    {0x0066, 0x04, 0, 0}, {0x0067, 0x20, 0, 0},
-    {0x0066, 0x05, 0, 0}, {0x0067, 0xe3, 0, 0},
-    {0x0066, 0x0a, 0, 0}, {0x0067, 0x60, 0, 0},
-    {0x0066, 0x0d, 0, 0}, {0x0067, 0x19, 0, 0},
-    {0x0066, 0x05, 0, 0}, {0x0067, 0xd3, 0, 0},
-    {0x0066, 0x06, 0, 0}, {0x0067, 0x20, 0, 0},
-    {0x0066, 0x0b, 0, 0}, {0x0067, 0x02, 0, 0},
-    {0x0066, 0x0e, 0, 0}, {0x0067, 0x01, 0, 0},
-    {0x0066, 0x0e, 0, 0}, {0x0067, 0x03, 0, 0},
-    {0x0066, 0x03, 0, 0}, {0x0067, 0x08, 0, 0},
-        
-    {0x0068, 0x01, 0, 0}, {0x0068, 0x11, 0, 0}, {0x0068, 0x21, 0, 0},  // Sequence to turn on pattern generator.
-	{0x0068, 0x31, 0, 0}, {0x0065, 0x04, 0, 0}, {0x0068, 0x01, 0, 0},  // Turn Pat Gen on
-	{0x0068, 0x11, 0, 0}, {0x0068, 0x21, 0, 0}, {0x0068, 0x31, 0, 0},  // Empty
-
-    {0x0068, 0x31, 0, 0}, {0x0018, 0x00, 0, 0}, {0x0065, 0x05, 0, 0},  // Turn Pat Gen on
-    {0x0039, 0x02, 0, 0}, {0x0064, 0x11, 0, 0}, {0x0066, 0x04, 0, 0},  // 
-    {0x0066, 0x05, 0, 0}, {0x0066, 0x05, 0, 0}, {0x0066, 0x06, 0, 0},  // 
-	{0x0066, 0x03, 0, 0}, {0x0068, 0x01, 0, 0}, {0x0068, 0x11, 0, 0},  // 
-	{0x0068, 0x21, 0, 0}, {0x0068, 0x31, 0, 0}, {0x0018, 0x00, 0, 0},  //       
+enum ds90ub940_mode {
+        ds90ub940_mode_MIN                 = 0,
+        ds90ub940_mode_default             = 0,
+        ds90ub940_mode_MAX                 = 0,
+        ds90ub940_mode_INIT                = 0xff, /*only for sensor init*/
 };
 
-// For RGB888 instead of YUV422, change 0x006b from 0x50 to 0x00
-// For Stripe bars instead of sequence, 0x0064, bit 2=1 (11->15)
-static struct reg_value ub940_1360x768_setting[] = {
-    {0x0001, 0x02, 0, 0},                                              // Reset the part
-	{0x006b, 0x50, 0, 0}, {0x006c, 0x2e, 0, 0}, {0x006d, 0x40, 0, 0},  // Virtual Channel ID=1, YUV422 
-    // Set Pattern Generator (indirect Registers)   
-	{0x0066, 0x0e, 0, 0}, {0x0067, 0x02, 0, 0}, 
-	{0x0066, 0x0e, 0, 0}, {0x0067, 0x02, 0, 0},                        
-	{0x0066, 0x04, 0, 0}, {0x0067, 0x00, 0, 0}, 
-	{0x0066, 0x05, 0, 0}, {0x0067, 0xb7, 0, 0},                        
- 	{0x0066, 0x07, 0, 0}, {0x0067, 0x50, 0, 0}, 
-	{0x0066, 0x08, 0, 0}, {0x0067, 0x05, 0, 0},                        
- 	{0x0066, 0x0a, 0, 0}, {0x0067, 0x70, 0, 0}, 
-	{0x0066, 0x0c, 0, 0}, {0x0067, 0xff, 0, 0},                        
- 	{0x0066, 0x05, 0, 0}, {0x0067, 0xb7, 0, 0}, 
-	{0x0066, 0x06, 0, 0}, {0x0067, 0x31, 0, 0},                        
- 	{0x0066, 0x08, 0, 0}, {0x0067, 0x05, 0, 0}, 
-	{0x0066, 0x09, 0, 0}, {0x0067, 0x30, 0, 0},                        
- 	{0x0066, 0x0b, 0, 0}, {0x0067, 0x06, 0, 0}, 
-	{0x0066, 0x0d, 0, 0}, {0x0067, 0x12, 0, 0},                        
-          
-    {0x0068, 0x01, 0, 0}, {0x0068, 0x11, 0, 0}, {0x0068, 0x21, 0, 0},  // Sequence to turn on pattern generator.
-	{0x0068, 0x31, 0, 0}, {0x0065, 0x04, 0, 0}, {0x0068, 0x01, 0, 0},  // Turn Pat Gen on
-	{0x0068, 0x11, 0, 0}, {0x0068, 0x21, 0, 0}, {0x0068, 0x31, 0, 0},  // Empty
+struct ds90ub940_mode_info {
+	enum ds90ub940_mode	mode;
+	u32			width;
+	u32			height;
+	u32			pixelFormat;
+	u32			fps;
+	struct reg_value	*init_data_ptr;
+	u32			init_data_size;
+};
 
-    {0x0068, 0x31, 0, 0}, {0x0018, 0x00, 0, 0}, {0x0065, 0x05, 0, 0},  // Turn Pat Gen on
-    {0x0039, 0x02, 0, 0}, {0x0064, 0x15, 0, 0}, {0x0066, 0x04, 0, 0},  // Color bars-0x0064, bit 2=1
-    {0x0066, 0x05, 0, 0}, {0x0066, 0x05, 0, 0}, {0x0066, 0x06, 0, 0},  // 
-	{0x0066, 0x03, 0, 0}, {0x0068, 0x01, 0, 0}, {0x0068, 0x11, 0, 0},  // 
-	{0x0068, 0x21, 0, 0}, {0x0068, 0x31, 0, 0}, {0x0018, 0x00, 0, 0},  // 
+static struct ds90ub940_mode_info ds90ub940_modes[] = {
+	// height and width filled out in probe() per module params
+	[ds90ub940_mode_default].mode = ds90ub940_mode_default,
+	[ds90ub940_mode_default].pixelFormat = V4L2_PIX_FMT_YUYV,
+	[ds90ub940_mode_default].fps = 30,
+	[ds90ub940_mode_default].init_data_ptr = ub940_default_setting,
+	[ds90ub940_mode_default].init_data_size = ARRAY_SIZE(ub940_default_setting),
+};
+
+//
+// Maintains the information on the current state of the sensor.
+//
+static struct sensor_data ds90ub940_data;
+
+//
+// forward declarations
+//
+static int ds90ub940_download_firmware(struct reg_value *pModeSetting, s32 ArySize);
+
+// For Stripe bars instead of sequence, 0x0064, bit 2=1 (11->15)
+static int ub940_pattern_generator(	u32 totFrameW, u32 totFrameH,
+					u32 actFrameW, u32 actFrameH,
+					u32 hSyncWidth, u32 vSyncWidth,
+					u32 hBackPorch, u32 vBackPorch,
+					u32 cLockDiv,	u32 enable) {
+	int retval;
+
+	struct reg_value config_regs[] = {
+		// total frame size
+		UB9XX_SET_PG_INDIRECT(UB9XX_PGTFS1, totFrameW & 0xff),
+		UB9XX_SET_PG_INDIRECT(UB9XX_PGTFS2, ((totFrameH & 0x0f) << 4) | ((totFrameW >> 8) & 0x0f)),
+		UB9XX_SET_PG_INDIRECT(UB9XX_PGTFS3, (totFrameH >> 4) & 0xff),
+		// active frame size
+		UB9XX_SET_PG_INDIRECT(UB9XX_PGAFS1, actFrameW & 0xff),
+		UB9XX_SET_PG_INDIRECT(UB9XX_PGAFS2, ((actFrameH & 0x0f) << 4) | ((actFrameW >> 8) & 0x0f)),
+		UB9XX_SET_PG_INDIRECT(UB9XX_PGAFS3, (actFrameH >> 4) & 0xff),
+		// sync width
+		UB9XX_SET_PG_INDIRECT(UB9XX_PGHSW, hSyncWidth),
+		UB9XX_SET_PG_INDIRECT(UB9XX_PGVSW, vSyncWidth),
+		// back porch
+		UB9XX_SET_PG_INDIRECT(UB9XX_PGHBP, hBackPorch),
+		UB9XX_SET_PG_INDIRECT(UB9XX_PGVBP, vBackPorch),
+		// H sync - normal, V sync inverted
+		UB9XX_SET_PG_INDIRECT(UB9XX_PGSC, 0x02),
+		// 200 Mhz clock divider (3 = 66.7Mhz)
+		UB9XX_SET_PG_INDIRECT(UB9XX_PGCDC, cLockDiv),
+		// Color bars
+		{UB9XX_PGCTL, 0x04, 0x04, 0},
+		// internal timing
+		{UB9XX_PGCFG, 0x04, 0x00, 0},
+	};
+
+	struct reg_value disable_regs[] = {
+		{UB9XX_PGCTL, 0x00, 0x01, 0},
+	};
 	
-};
+	struct reg_value enable_regs[] = {
+		{UB9XX_PGCTL, 0x01, 0x01, 0},
+	};
 
-// Original MIPI Structures
-//static struct reg_value ov5640_init_setting_30fps_VGA[] = {
-//};
+	// disable
+	retval = ds90ub940_download_firmware(disable_regs, ARRAY_SIZE(disable_regs));
 
-static struct reg_value ov5640_setting_30fps_VGA_640_480[] = {
-};
-
-static struct reg_value ov5640_setting_15fps_VGA_640_480[] = {
-};
-
-
-static struct ov5640_mode_info ov5640_mode_info_data[2][ov5640_mode_MAX + 1] = {    // JAD was 5
-	{
-		{ov5640_mode_VGA_640_480, SUBSAMPLING, 1366,  768,        // JAD was 640 x 480
-		ov5640_setting_15fps_VGA_640_480,
-		ARRAY_SIZE(ov5640_setting_15fps_VGA_640_480)},
-	},
-	{
-		{ov5640_mode_VGA_640_480, SUBSAMPLING, 1366,  768,        // JAD was 640 x 480
-		ov5640_setting_30fps_VGA_640_480,
-		ARRAY_SIZE(ov5640_setting_30fps_VGA_640_480)},
-	},
-};
-
-static struct fsl_mxc_camera_platform_data *camera_plat;
-
-static int ov5640_probe(struct i2c_client *adapter,
-				const struct i2c_device_id *device_id);
-static int ov5640_remove(struct i2c_client *client);
-
-static s32 ub9xx_read_reg (u16 reg, u8 *val);
-static s32 ub9xx_write_reg(u16 reg, u8  val);
-
-// 
-static const struct i2c_device_id ov5640_id[] = {
-	{"ov5640_mipi", 0},
-	{},
-};
-
-MODULE_DEVICE_TABLE(i2c, ov5640_id);
-
-// 
-static struct i2c_driver ov5640_i2c_driver = {
-	.driver = {
-		  .owner = THIS_MODULE,
-		  .name  = "ov5640_mipi",
-		  },
-	.probe    = ov5640_probe,
-	.remove   = ov5640_remove,
-	.id_table = ov5640_id,
-};
-
-// This can become 74ub9xx write function
-// add addditional comments
-static s32 ub9xx_write_reg(u16 reg, u8 val)
-{
-	u8 au8Buf[3] = {0};         // 2 address and 1 data value    
-	au8Buf   [0] = reg & 0xff;  // JAD was - reg >> 8
-	au8Buf   [1] = val;         // JAD was - reg & 0xff
-	au8Buf   [2] = val;         // may be able to get rid of this
-	if (i2c_master_send(ov5640_data.i2c_client, au8Buf, 2) < 0) {                // JAD was 3
-//		pr_err(">>>> %s: error:reg=%x,val=%x\n",__func__, reg, val);             // JAD
-		return -1;
+	if(enable && !retval) {
+		retval = ds90ub940_download_firmware(config_regs, ARRAY_SIZE(config_regs));
+		if(!retval)
+			retval = ds90ub940_download_firmware(enable_regs, ARRAY_SIZE(enable_regs));
 	}
 
-	return 0;
-}
-
-// This can become 74ub9xx read function
-// add addditional comments
-static s32 ub9xx_read_reg(u16 reg, u8 *val)
-{
-	u8 au8RegBuf[2] = {0};        // 2 address and 1 data value  
-	u8 u8RdVal = 0;
-
-	au8RegBuf[0] = reg & 0xff;    // JAD was - reg >> 8
-	au8RegBuf[1] = reg & 0x0000;  // JAD was - reg & 0xff
-
-	if (1 != i2c_master_send(ov5640_data.i2c_client, au8RegBuf, 1)) {   // JAD was 2
-//		pr_err(">>>> %s: write reg error:reg=%x\n",                     // JAD
-//				__func__, reg);
-		return -1;
-	}
-
-	if (1 != i2c_master_recv(ov5640_data.i2c_client, &u8RdVal, 1)) {
-//		pr_err(">>>> %s: read reg error:reg=%x,val=%x\n",             //JAD
-//				__func__, reg, u8RdVal);
-		return -1;
-	}
-	*val = u8RdVal;
-
-	return u8RdVal;
-}
-
-// static int prev_sysclk, prev_HTS;
-//static int AE_low, AE_high, AE_Target = 52;
-
-int OV5640_get_sysclk(void)
-{
-	 /* calculate sysclk */
-	int xvclk = ov5640_data.mclk / 10000;
-	int temp1, temp2;
-	int Multiplier, PreDiv, VCO, SysDiv, Pll_rdiv, Bit_div2x = 1, sclk_rdiv, sysclk;
-//	u8 temp;
-
-	int sclk_rdiv_map[] = {1, 2, 4, 8};
-
-//	temp1 = ov5640_read_reg(0x3034, &temp);
-    temp1 = 24;
-//	pr_err(">>>> %s 1 temp1: %i",temp1);  // JAD
-	temp2 = temp1 & 0x0f;
-	if (temp2 == 8 || temp2 == 10) {
-		Bit_div2x = temp2 / 2;
-	}
-
-//	temp1 = ov5640_read_reg(0x3035, &temp);
-	temp1 = 20;
-//	pr_err(" >>>> %s 2 temp1: %i", temp1);  // JAD
-	SysDiv = temp1>>4;
-	if (SysDiv == 0) {
-	    SysDiv = 16;
-	}
-
-//	temp1 = ov5640_read_reg(0x3036, &temp);
-//	temp1 = 56;
-//	pr_err("3 temp1: %i",temp1);
-//	Multiplier = temp1;
-//
-//	temp1 = ov5640_read_reg(0x3037, &temp);
-//	temp1 = 19;
-//	pr_err("4 temp1: %i",temp1);
-//	PreDiv = temp1 & 0x0f;
-//	Pll_rdiv = ((temp1 >> 4) & 0x01) + 1;
-//
-//	temp1 = ov5640_read_reg(0x3108, &temp);
-//	temp1 = 1;
-//	pr_err("5 temp1: %i",temp1);
-//	temp2 = temp1 & 0x03;
-//	sclk_rdiv = sclk_rdiv_map[temp2];
-//	VCO = xvclk * Multiplier / PreDiv;
-//	sysclk = VCO / SysDiv / Pll_rdiv * 2 / Bit_div2x / sclk_rdiv;
-//
-//	/* Bypass Hack */
-//	pr_err("sysclk1: %i", sysclk);              //5600
-//	pr_err("sysclk freq: %i",ov5640_data.mclk); //24000000 (24MHz)
-//	pr_err("xvclk: %i", xvclk);                 //2400
-
-	sysclk = 5600;
-	xvclk  = 2400;
-
-	return sysclk;
-}
-
-/*
-  This functions sets registers on the OV5640 by passing the 
-  structures available for each mode, for example:
-  reg_value ov5640_setting_30fps_VGA_640_480[]
-*/
-static int ov5640_download_firmware(struct reg_value *pModeSetting, s32 ArySize)
-{
-	register u32 Delay_ms = 0;
-	register u16 RegAddr  = 0;
-	register u8 Mask      = 0;
-	register u8 Val       = 0;
-	u8 RegVal             = 0;
-	int i, retval         = 0;
-
-	for (i = 0; i < ArySize; ++i, ++pModeSetting) {
-		Delay_ms = pModeSetting->u32Delay_ms;
-		RegAddr  = pModeSetting->u16RegAddr;
-		Val      = pModeSetting->u8Val;
-		Mask     = pModeSetting->u8Mask;
-
-		if (Mask) {
-			retval = ub9xx_read_reg(RegAddr, &RegVal);
-//			pr_err("%s: >>>> Get RegVal: %i", RegVal);    // JAD
-
-			if (retval < 0)
-				goto err;
-
-			RegVal &= ~(u8)Mask;
-			Val    &= Mask;
-			Val    |= RegVal;
-		}
-		retval = ub9xx_write_reg(RegAddr, Val);
-
-//		pr_err("retval 2: %i", retval);
-		if (retval < 0)
-			goto err;
-
-		if (Delay_ms)
-			msleep(Delay_ms);
-	}
-err:
 	return retval;
 }
 
-/* sensor changes between scaling and subsampling
- * go through exposure calcualtion
- */
-//static int ov5640_change_mode_exposure_calc(enum ov5640_frame_rate frame_rate,
-//				enum ov5640_mode mode)
-//{
-//    return 0;
-//}
 
-static int ov5640_init_mode(enum ov5640_frame_rate frame_rate,
-			    enum ov5640_mode mode, enum ov5640_mode orig_mode)
+// write 1 byte register address, followed by 1 byte read of value
+static s32 ub9xx_write_reg(u8 reg, u8 val)
 {
-	struct reg_value *pModeSetting = NULL;
-	s32 ArySize = 0;
-	int retval  = 0;
+	u8 au8Buf[2] = {reg, val};
+	int err = i2c_master_send(ds90ub940_data.i2c_client, au8Buf, 2);
+	return err > 0 ? 0 : err;
+}
+
+// write 1 byte register address, followed by 1 byte read of value
+static s32 ub9xx_read_reg(u8 reg, u8 *val)
+{
+	int err = i2c_master_send(ds90ub940_data.i2c_client, &reg, 1);
+	if(err > 0)
+		err = i2c_master_recv(ds90ub940_data.i2c_client, val, 1);
+	return err > 0 ? 0 : err;
+}
+
+/*
+  This functions sets registers on the DS90UB940
+*/
+static int ds90ub940_download_firmware(struct reg_value *pModeSetting, s32 ArySize)
+{
+	int i = 0, retval = 0;
+	u8 tmpVal;
+	struct reg_value *fw = pModeSetting;
+
+	for(i=0; i < ArySize; i++, fw++) {
+		// mask? read first
+		if(fw->mask) {
+			retval = ub9xx_read_reg(fw->reg, &tmpVal);
+			if(retval)
+				break;
+			tmpVal &= ~fw->mask;
+			tmpVal |= fw->val & fw->mask;
+		}
+		else
+			tmpVal = fw->val;
+
+		retval = ub9xx_write_reg(fw->reg, tmpVal);
+		if(retval)
+			break;
+	}
+
+	return retval;
+}
+
+static int ds90ub940_init_mode(u32 frame_rate, enum ds90ub940_mode mode)
+{
+	int retval;
 	void *mipi_csi2_info;
-	u32 mipi_reg, msec_wait4stable = 0;
-	enum ov5640_downsize_mode dn_mode, orig_dn_mode;
+	u32 mipi_reg;
 
-//	pr_err ("\n\n>>>> ov5640_init_mode: build date = %s %s", __DATE__, __TIME__);
-//	pr_err (">>>> ov5640_init_mode: frame rate=%i, mode=%i, orig_mode=%i", frame_rate, mode, orig_mode);
+	pr_debug("\n\n>>>> ds90ub940_init_mode: build date = %s %s\n", __DATE__, __TIME__);
+	pr_debug(">>>> ds90ub940_init_mode: frame rate=%i, mode=%i\n", frame_rate, mode);
 
-    pModeSetting = ub940_1360x768_setting;         			        // JAD New for LVDS-CSI2
-    ArySize = ARRAY_SIZE(ub940_1360x768_setting);                   // JAD
-    retval = ov5640_download_firmware(pModeSetting, ArySize);       // JAD
+	// only initialize / set ds90ub40 when mode is set
+	if (mode != ds90ub940_mode_INIT) {
+		ds90ub940_data.pix.width  =  ds90ub940_modes[mode].width;
+		ds90ub940_data.pix.height =  ds90ub940_modes[mode].height;
+		retval = ds90ub940_download_firmware(ds90ub940_modes[mode].init_data_ptr,
+							ds90ub940_modes[mode].init_data_size);
+		if(retval)
+			return retval;
+		if(pgon) {
+			// TODO how should parms other than active frame size change??
+			retval = ub940_pattern_generator(1792, 795,
+				ds90ub940_data.pix.width, ds90ub940_data.pix.height, 112, 6, 255, 18, 3, 1);
+			if(retval)
+				return retval;
+		}
+	}
 
 	mipi_csi2_info = mipi_csi2_get_info();
 
@@ -426,7 +265,7 @@ static int ov5640_init_mode(enum ov5640_frame_rate frame_rate,
 
 		if (!mipi_csi2_get_status(mipi_csi2_info))
 		{
-//			pr_err (">>>> %s: Debug ov5640 init mode: Line: %i", __LINE__);
+			pr_debug(">>>> %s: Debug ds90ub940 init mode: Line: %i",__func__, __LINE__);
 			mipi_csi2_enable(mipi_csi2_info);
 		}
 
@@ -434,79 +273,67 @@ static int ov5640_init_mode(enum ov5640_frame_rate frame_rate,
 			mipi_csi2_set_lanes(mipi_csi2_info);
 
 			/*Only reset MIPI CSI2 HW at sensor initialize*/
-			if (mode == ov5640_mode_INIT) {
+			if (mode == ds90ub940_mode_INIT) {
 				mipi_csi2_reset(mipi_csi2_info);
 			}
 
 			mipi_csi2_set_datatype(mipi_csi2_info, MIPI_DT_YUV422);  // JAD force type MIPI_DT_RGB888 or MIPI_DT_YUV422
 			
 		} else {
-//			pr_err(">>>> %s: Can not enable mipi csi2 driver!\n");
+			pr_err(">>>> %s: Can not enable mipi csi2 driver!\n",__func__);
 			return -1;
 		}
 	} else {
-//		printk(KERN_ERR "Fail to get mipi_csi2_info!\n");
+		pr_err("Fail to get mipi_csi2_info!\n");
 		return -1;
 	}
 
-	dn_mode = ov5640_mode_info_data[frame_rate][mode].dn_mode;
-	orig_dn_mode = ov5640_mode_info_data[frame_rate][orig_mode].dn_mode;
-	if (mode == ov5640_mode_INIT) {
-//                pModeSetting = ov5640_init_setting_30fps_VGA;         // JAD remove
-//                ArySize = ARRAY_SIZE(ov5640_init_setting_30fps_VGA);  // JAD remove   
+	// dump the first 9 frames
+	if(frame_rate)
+		msleep(9000 / frame_rate);
 
-		  ov5640_data.pix.width  =  1366;   //  JAD was 640
-		  ov5640_data.pix.height =   768;   //  JAD was 480
-//        retval = ov5640_download_firmware(pModeSetting, ArySize);
-		if (retval < 0){
-			goto err;
-		}
+	/*
+	Per section 40.6.6 of IMX6DQRM, the MIPI_CSI_PHY_STATE bits:
 
-	} else if ((dn_mode == SUBSAMPLING && orig_dn_mode == SCALING) ||
-			(dn_mode == SCALING && orig_dn_mode == SUBSAMPLING)) {
-		/* change between subsampling and scaling
-		 * go through exposure calucation */
-//		retval = ov5640_change_mode_exposure_calc(frame_rate, mode);
-	} else {
-		/* change inside subsampling or scaling
-		 * download firmware directly */
-//		retval = ov5640_change_mode_direct(frame_rate, mode);
-	}
+	31–12 This field is reserved.
+	   11 Payload Bypass test mode for double ECC errors
+	   10 Clock Lane in Stop state
+	    9 Active Low. This signal indicates that the Clock Lane module
+	      has entered the Ultra Low Power state
+	    8 Indicates that the clock lane is actively receiving a DDR clock
+	    7 Data Lane 3 in Stop state
+	    6 Data Lane 2 in Stop state
+	    5 Data Lane 1 in Stop state
+	    4 Data Lane 0 in Stop state
+	    3 Lane module 3 has entered the Ultra Low Power mode
+	    2 Lane module 2 has entered the Ultra Low Power mode
+	    1 Lane module 1 has entered the Ultra Low Power mode
+	    0 Lane module 0 has entered the Ultra Low Power mode
 
-	if (retval < 0)
-		goto err;
+	Observed status:
+	   no clock from ds90ub940 - 0x200, with pattern generator internal clock - 0x300 or 0x6f0
 
-	if (frame_rate == ov5640_15_fps) {
-		/* dump the first nine frames: 1/15*9 */
-		msec_wait4stable = 600;
-
-	} else if (frame_rate == ov5640_30_fps) {           // JAD was 30 fps
-		/* dump the first nine frames: 1/30*9 */
-		msec_wait4stable = 300;                         // JAD was 300
-
-	}
-	msleep(msec_wait4stable);
+	Note: since there is no bit that indicates "sensor clock available", checking b9 == 1
+	*/
 
 	if (mipi_csi2_info) {
-		unsigned int i;
-//        pr_err (">>>> %s: Debug ov5640 init mode: Line: %i", __LINE__);
-		i = 0;
+		unsigned int i = 0;
+	        pr_debug(">>>> %s: Debug ds90ub940 init mode: Line: %i", __func__,__LINE__);
 		/* wait for mipi sensor ready */
-		mipi_reg = mipi_csi2_dphy_status(mipi_csi2_info);
-//	        pr_err (">>>> %s: 0 try: %i csi2 dphy status: 0x%X", i, mipi_reg);
-		while ((mipi_reg != 0x330) && (i < 10)) { //original == 0x200
-			mipi_reg = mipi_csi2_dphy_status(mipi_csi2_info);
-//		        pr_err (">>>> %s: 1 try:%i csi2 dphy status: 0x%X", i, mipi_reg);
+		mipi_reg = mipi_csi2_dphy_status(mipi_csi2_info) & 0x200;
+	        pr_debug(">>>> %s: 0 try: %i csi2 dphy status: 0x%X", __func__,i, mipi_reg);
+		while ((mipi_reg != 0x200) && (i < 10)) { //was changed to 0x330
+			mipi_reg = mipi_csi2_dphy_status(mipi_csi2_info) & 0x200;
+		        pr_debug(">>>> %s: 1 try:%i csi2 dphy status: 0x%X", __func__,i, mipi_reg);
 			i++;
 			msleep(10);
 		}
 		if (i >= 10) {
-//			pr_err(">>>> %s: mipi csi2 can not receive sensor clk!\n");
+			pr_err(">>>> %s: mipi csi2 can not receive sensor clk!\n",__func__);
 			return -1;
 		}
 
 		i = 0;
-
 		/* wait for mipi stable */
 		mipi_reg = mipi_csi2_get_error1(mipi_csi2_info);
 
@@ -516,12 +343,12 @@ static int ov5640_init_mode(enum ov5640_frame_rate frame_rate,
 			msleep(10);
 		}
 		if (i >= 10) {
-//			pr_err(">>>> %s: mipi csi2 can not reveive data correctly!\n");
+			pr_err(">>>> %s: mipi csi2 can not reveive data correctly!\n",__func__);
 			return -1;
 		}
 	}
-err:
-	return retval;
+
+	return 0;
 }
 
 /* --------------- IOCTL functions from v4l2_int_ioctl_desc --------------- */
@@ -529,16 +356,16 @@ err:
 static int ioctl_g_ifparm(struct v4l2_int_device *s, struct v4l2_ifparm *p)
 {
 	if (s == NULL) {
-//		pr_err(">>>> %s: ERROR!! no slave device set!\n");
+		pr_err(">>>> %s: ERROR!! no slave device set!\n", __func__);
 		return -1;
 	}
 
 	memset(p, 0, sizeof(*p));
-	p->u.bt656.clock_curr = ov5640_data.mclk;
+	p->u.bt656.clock_curr = ds90ub940_data.mclk;
 	p->if_type = V4L2_IF_TYPE_BT656;	                    // JAD Change this?  was V4L2_IF_TYPE_BT656
 	p->u.bt656.mode = V4L2_IF_TYPE_BT656_MODE_BT_8BIT;      // Was V4L2_IF_TYPE_BT656_MODE_NOBT_8BIT
-	p->u.bt656.clock_min = OV5640_XCLK_MIN;
-	p->u.bt656.clock_max = OV5640_XCLK_MAX;
+	p->u.bt656.clock_min = DS90UB940_XCLK_MIN;
+	p->u.bt656.clock_max = DS90UB940_XCLK_MAX;
 	p->u.bt656.bt_sync_correct = 1;                         /* JAD Indicate external vsync - was 0 */
 
 	return 0;
@@ -609,66 +436,36 @@ static int ioctl_g_parm(struct v4l2_int_device *s, struct v4l2_streamparm *a)
  * @s: pointer to standard V4L2 device structure
  * @a: pointer to standard V4L2 VIDIOC_S_PARM ioctl structure
  *
- * Configures the sensor to use the input parameters, if possible.  If
- * not possible, reverts to the old parameters and returns the
- * appropriate error code.
+ * Configures the sensor to use the requested mode.
  */
 static int ioctl_s_parm(struct v4l2_int_device *s, struct v4l2_streamparm *a)
 {
 	struct sensor_data *sensor = s->priv;
-	struct v4l2_fract *timeperframe = &a->parm.capture.timeperframe;
-	u32 tgt_fps;	/* target frames per secound */
-	enum ov5640_frame_rate frame_rate;
-	enum ov5640_mode orig_mode;
+	u32 new_mode = (u32)a->parm.capture.capturemode;
 	int ret = 0;
 
 	switch (a->type) {
 	/* This is the only case currently handled. */
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-		/* Check that the new frame rate is allowed. */
-		if ((timeperframe->numerator == 0) ||
-		    (timeperframe->denominator == 0)) {
-			timeperframe ->denominator = DEFAULT_FPS;
-			timeperframe ->numerator = 1;
+
+		if(new_mode > ds90ub940_mode_MAX) {
+			// TODO once the higher level (DeviceAdapter() / OvDevice()) 
+			// is fixed, change to error. In the meantime set to default
+			new_mode = ds90ub940_mode_default;
+			//pr_err(">>>> %s: invalid mode: %d\n",__func__, new_mode);
+			//return -EINVAL;
 		}
 
-		tgt_fps = timeperframe->denominator /
-			  timeperframe->numerator;
-
-		if (tgt_fps > MAX_FPS) {
-			timeperframe->denominator = MAX_FPS;
-			timeperframe->numerator = 1;
-		} else if (tgt_fps < MIN_FPS) {
-			timeperframe->denominator = MIN_FPS;
-			timeperframe->numerator = 1;
-		}
-
-		/* Actual frame rate we use */
-		tgt_fps = timeperframe->denominator /
-			  timeperframe->numerator;
-
-		if (tgt_fps == 15)
-			frame_rate = ov5640_15_fps;
-		else if (tgt_fps == 30)             // JAD was 30 
-			frame_rate = ov5640_30_fps;     // JAD was 30
-		else if (tgt_fps == 60)             // JAD added 
-			frame_rate = ov5640_60_fps;     // JAD added
-		else {
-//			pr_err(">>>> %s: The camera frame rate is not supported!\n");  //JAD added ">>>>"
-			return -EINVAL;
-		}
-		frame_rate = ov5640_60_fps;            // JAD added this
-		orig_mode = sensor->streamcap.capturemode;
-//		ret = ov5640_init_mode(frame_rate,
-//				(u32)a->parm.capture.capturemode, orig_mode);
+		ret = ds90ub940_init_mode(ds90ub940_modes[new_mode].fps, new_mode);
 		if (ret < 0) {
-//			pr_err(">>>> %s: ov5640 init mode error 1\n");
+			pr_err(">>>> %s: ds90ub940 init mode error 1\n",__func__);
 			return ret;
 		}
 
-		sensor->streamcap.timeperframe = *timeperframe;
-		sensor->streamcap.capturemode =
-				(u32)a->parm.capture.capturemode;
+		// ignore new FPS change - since we said it's not a capability
+		sensor->streamcap.timeperframe.numerator = 1;
+		sensor->streamcap.timeperframe.denominator = ds90ub940_modes[new_mode].fps;
+		sensor->streamcap.capturemode = new_mode;
 
 		break;
 
@@ -679,9 +476,7 @@ static int ioctl_s_parm(struct v4l2_int_device *s, struct v4l2_streamparm *a)
 	case V4L2_BUF_TYPE_VBI_OUTPUT:
 	case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
 	case V4L2_BUF_TYPE_SLICED_VBI_OUTPUT:
-		pr_debug("   type is not " \
-			"V4L2_BUF_TYPE_VIDEO_CAPTURE but %d\n",
-			a->type);
+		pr_debug("   type is not V4L2_BUF_TYPE_VIDEO_CAPTURE but %d\n", a->type);
 		ret = -EINVAL;
 		break;
 
@@ -712,101 +507,6 @@ static int ioctl_g_fmt_cap(struct v4l2_int_device *s, struct v4l2_format *f)
 }
 
 /*!
- * ioctl_g_ctrl - V4L2 sensor interface handler for VIDIOC_G_CTRL ioctl
- * @s: pointer to standard V4L2 device structure
- * @vc: standard V4L2 VIDIOC_G_CTRL ioctl structure
- *
- * If the requested control is supported, returns the control's current
- * value from the video_control[] array.  Otherwise, returns -EINVAL
- * if the control is not supported.
- */
-static int ioctl_g_ctrl(struct v4l2_int_device *s, struct v4l2_control *vc)
-{
-	int ret = 0;
-
-	switch (vc->id) {
-	case V4L2_CID_BRIGHTNESS:
-		vc->value = ov5640_data.brightness;
-		break;
-	case V4L2_CID_HUE:
-		vc->value = ov5640_data.hue;
-		break;
-	case V4L2_CID_CONTRAST:
-		vc->value = ov5640_data.contrast;
-		break;
-	case V4L2_CID_SATURATION:
-		vc->value = ov5640_data.saturation;
-		break;
-	case V4L2_CID_RED_BALANCE:
-		vc->value = ov5640_data.red;
-		break;
-	case V4L2_CID_BLUE_BALANCE:
-		vc->value = ov5640_data.blue;
-		break;
-	case V4L2_CID_EXPOSURE:
-		vc->value = ov5640_data.ae_mode;
-		break;
-	default:
-		ret = -EINVAL;
-	}
-
-	return ret;
-}
-
-/*!
- * ioctl_s_ctrl - V4L2 sensor interface handler for VIDIOC_S_CTRL ioctl
- * @s: pointer to standard V4L2 device structure
- * @vc: standard V4L2 VIDIOC_S_CTRL ioctl structure
- *
- * If the requested control is supported, sets the control's current
- * value in HW (and updates the video_control[] array).  Otherwise,
- * returns -EINVAL if the control is not supported.
- */
-static int ioctl_s_ctrl(struct v4l2_int_device *s, struct v4l2_control *vc)
-{
-	int retval = 0;
-
-	pr_debug("In ov5640:ioctl_s_ctrl %d\n",
-		 vc->id);
-
-	switch (vc->id) {
-	case V4L2_CID_BRIGHTNESS:
-		break;
-	case V4L2_CID_CONTRAST:
-		break;
-	case V4L2_CID_SATURATION:
-		break;
-	case V4L2_CID_HUE:
-		break;
-	case V4L2_CID_AUTO_WHITE_BALANCE:
-		break;
-	case V4L2_CID_DO_WHITE_BALANCE:
-		break;
-	case V4L2_CID_RED_BALANCE:
-		break;
-	case V4L2_CID_BLUE_BALANCE:
-		break;
-	case V4L2_CID_GAMMA:
-		break;
-	case V4L2_CID_EXPOSURE:
-		break;
-	case V4L2_CID_AUTOGAIN:
-		break;
-	case V4L2_CID_GAIN:
-		break;
-	case V4L2_CID_HFLIP:
-		break;
-	case V4L2_CID_VFLIP:
-		break;
-	default:
-		retval = -EPERM;
-		break;
-	}
-
-	return retval;
-}
-
-/*!
  * ioctl_enum_framesizes - V4L2 sensor interface handler for
  *			   VIDIOC_ENUM_FRAMESIZES ioctl
  * @s: pointer to standard V4L2 device structure
@@ -817,18 +517,13 @@ static int ioctl_s_ctrl(struct v4l2_int_device *s, struct v4l2_control *vc)
 static int ioctl_enum_framesizes(struct v4l2_int_device *s,
 				 struct v4l2_frmsizeenum *fsize)
 {
-	if (fsize->index > ov5640_mode_MAX)
+	if (fsize->index > ds90ub940_mode_MAX)
 		return -EINVAL;
 
-	fsize->pixel_format = ov5640_data.pix.pixelformat;
-	fsize->discrete.width =	1366;							    // JAD was 640
-//	fsize->discrete.width =
-//			max(ov5640_mode_info_data[0][fsize->index].width,
-//			    ov5640_mode_info_data[1][fsize->index].width);
-//	fsize->discrete.height = 
-    fsize->discrete.height =  768;							    // JAD was 480
-//			max(ov5640_mode_info_data[0][fsize->index].height,
-//			    ov5640_mode_info_data[1][fsize->index].height);
+	fsize->pixel_format = ds90ub940_modes[fsize->index].pixelFormat;
+	fsize->discrete.width =	ds90ub940_modes[fsize->index].width;
+	fsize->discrete.height =  ds90ub940_modes[fsize->index].height;
+
 	return 0;
 }
 
@@ -844,8 +539,7 @@ static int ioctl_g_chip_ident(struct v4l2_int_device *s, int *id)
 {
 	((struct v4l2_dbg_chip_ident *)id)->match.type =
 					V4L2_CHIP_MATCH_I2C_DRIVER;
-	strcpy(((struct v4l2_dbg_chip_ident *)id)->match.name,
-		"ov5640_mipi_camera");
+	strcpy(((struct v4l2_dbg_chip_ident *)id)->match.name, "ds90ub940");
 
 	return 0;
 }
@@ -869,10 +563,10 @@ static int ioctl_init(struct v4l2_int_device *s)
 static int ioctl_enum_fmt_cap(struct v4l2_int_device *s,
 			      struct v4l2_fmtdesc *fmt)
 {
-	if (fmt->index > ov5640_mode_MAX)
+	if (fmt->index > ds90ub940_mode_MAX)
 		return -EINVAL;
 
-	fmt->pixelformat = ov5640_data.pix.pixelformat;
+	fmt->pixelformat = ds90ub940_modes[fmt->index].pixelFormat;
 
 	return 0;
 }
@@ -885,34 +579,17 @@ static int ioctl_enum_fmt_cap(struct v4l2_int_device *s,
  */
 static int ioctl_dev_init(struct v4l2_int_device *s)
 {
-	struct sensor_data *sensor = s->priv;
 	u32 tgt_xclk;	/* target xclk */
-	u32 tgt_fps;	/* target frames per secound */
 	int ret;
-	enum ov5640_frame_rate frame_rate;
 	void *mipi_csi2_info;
 
-	ov5640_data.on = true;
+	ds90ub940_data.on = true;
 
 	/* mclk */
-	tgt_xclk = ov5640_data.mclk;
+	tgt_xclk = ds90ub940_data.mclk;
 
-	set_mclk_rate(&ov5640_data.mclk, ov5640_data.mclk_source);
+	set_mclk_rate(&ds90ub940_data.mclk, ds90ub940_data.mclk_source);
 
-	/* Default camera frame rate is set in probe */
-	tgt_fps = sensor->streamcap.timeperframe.denominator /   // JAD
-		  sensor->streamcap.timeperframe.numerator;          // JAD
-
-	if (tgt_fps == 15)
-		frame_rate = ov5640_15_fps;
-	else if (tgt_fps == 30)
-		frame_rate = ov5640_30_fps;
-	else if (tgt_fps == 60)                                  // JAD added
-		frame_rate = ov5640_60_fps;                          // JAD added
-	else
-		return -EINVAL; /* Only support 15fps or 30fps now. */
-
-	frame_rate = ov5640_60_fps;                              // JAD - force FPS
 	mipi_csi2_info = mipi_csi2_get_info();
 
 	/* enable mipi csi2 */
@@ -923,7 +600,8 @@ static int ioctl_dev_init(struct v4l2_int_device *s)
 		return -EPERM;
 	}
 
-	ret = ov5640_init_mode(frame_rate, ov5640_mode_INIT, ov5640_mode_INIT);
+	// this will init mipi, not ds90ub940
+	ret = ds90ub940_init_mode(0, ds90ub940_mode_INIT);
 
 	return ret;
 }
@@ -952,26 +630,17 @@ static int ioctl_dev_exit(struct v4l2_int_device *s)
  * This structure defines all the ioctls for this module and links them to the
  * enumeration.
  */
-static struct v4l2_int_ioctl_desc ov5640_ioctl_desc[] = {
+static struct v4l2_int_ioctl_desc ds90ub940_ioctl_desc[] = {
 	{vidioc_int_dev_init_num, (v4l2_int_ioctl_func*) ioctl_dev_init},
 	{vidioc_int_dev_exit_num, ioctl_dev_exit},
 	{vidioc_int_s_power_num, (v4l2_int_ioctl_func*) ioctl_s_power},
 	{vidioc_int_g_ifparm_num, (v4l2_int_ioctl_func*) ioctl_g_ifparm},
-/*	{vidioc_int_g_needs_reset_num,
-				(v4l2_int_ioctl_func *)ioctl_g_needs_reset}, */
-/*	{vidioc_int_reset_num, (v4l2_int_ioctl_func *)ioctl_reset}, */
 	{vidioc_int_init_num, (v4l2_int_ioctl_func*) ioctl_init},
 	{vidioc_int_enum_fmt_cap_num,
 				(v4l2_int_ioctl_func *) ioctl_enum_fmt_cap},
-/*	{vidioc_int_try_fmt_cap_num,
-				(v4l2_int_ioctl_func *)ioctl_try_fmt_cap}, */
 	{vidioc_int_g_fmt_cap_num, (v4l2_int_ioctl_func *) ioctl_g_fmt_cap},
-/*	{vidioc_int_s_fmt_cap_num, (v4l2_int_ioctl_func *) ioctl_s_fmt_cap}, */
 	{vidioc_int_g_parm_num, (v4l2_int_ioctl_func *) ioctl_g_parm},
 	{vidioc_int_s_parm_num, (v4l2_int_ioctl_func *) ioctl_s_parm},
-/*	{vidioc_int_queryctrl_num, (v4l2_int_ioctl_func *)ioctl_queryctrl}, */
-	{vidioc_int_g_ctrl_num, (v4l2_int_ioctl_func *) ioctl_g_ctrl},
-	{vidioc_int_s_ctrl_num, (v4l2_int_ioctl_func *) ioctl_s_ctrl},
 	{vidioc_int_enum_framesizes_num,
 				(v4l2_int_ioctl_func *) ioctl_enum_framesizes},
 	{vidioc_int_g_chip_ident_num,
@@ -979,52 +648,67 @@ static struct v4l2_int_ioctl_desc ov5640_ioctl_desc[] = {
 };
 
 // Structure need for V4L2 interface
-static struct v4l2_int_slave ov5640_slave = {
-	.ioctls = ov5640_ioctl_desc,
-	.num_ioctls = ARRAY_SIZE(ov5640_ioctl_desc),
+static struct v4l2_int_slave ds90ub940_slave = {
+	.ioctls = ds90ub940_ioctl_desc,
+	.num_ioctls = ARRAY_SIZE(ds90ub940_ioctl_desc),
 };
 
 // Structure need for V4L2 interface
-static struct v4l2_int_device ov5640_int_device = {
+static struct v4l2_int_device ds90ub940_int_device = {
 	.module = THIS_MODULE,
-	.name   = "ov5640",
+	.name   = "ds90ub940",
 	.type   = v4l2_int_type_slave,
 	.u      = {
-		.slave = &ov5640_slave,
+		.slave = &ds90ub940_slave,
 	},
 };
 
 //
-// ov5640 I2C probe function
+// ds90ub940 I2C probe function
 //
 // @param adapter            struct i2c_adapter *
 // @return  Error code indicating success or failure
 // 
-static int ov5640_probe(struct i2c_client *client,
+static int ds90ub940_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	int retval;
+	u8 regval;
+
 	struct fsl_mxc_camera_platform_data *plat_data = client->dev.platform_data;
 
-//	pr_err("%s: >>>>  ov5640 camera probe function");
+	pr_debug("%s: >>>>  ds90ub940 camera probe function\n", __func__);
+
+	// mode height and width per module params
+	ds90ub940_modes[ds90ub940_mode_default].width = xres;
+	ds90ub940_modes[ds90ub940_mode_default].height = yres;
 
 	/* Set initial values for the sensor struct. */
-	memset(&ov5640_data, 0, sizeof(ov5640_data));
-	ov5640_data.mclk = 80000000; /* 6 - 54 MHz, typical 24MHz */
-	ov5640_data.mclk = plat_data->mclk;
-	ov5640_data.mclk_source = plat_data->mclk_source;
-	ov5640_data.csi = plat_data->csi;
-	ov5640_data.io_init = plat_data->io_init;
-	ov5640_data.i2c_client = client;
-	ov5640_data.pix.pixelformat = V4L2_PIX_FMT_YUYV;     // JAD was V4L2_PIX_FMT_UYVY or V4L2_PIX_FMT_RGB24 or V4L2_PIX_FMT_RGB565
-	                                                     // or V4L2_PIX_FMT_YUYV or V4L2_PIX_FMT_YUV420
-	ov5640_data.pix.width  = 1366;                       // JAD was 640
-	ov5640_data.pix.height =  768;                       // JAD was 480
-	ov5640_data.streamcap.capability = V4L2_MODE_HIGHQUALITY |
-					                   V4L2_CAP_TIMEPERFRAME;
-	ov5640_data.streamcap.capturemode = 1;               // JAD was 0
-	ov5640_data.streamcap.timeperframe.denominator = DEFAULT_FPS;
-	ov5640_data.streamcap.timeperframe.numerator = 1;
+	memset(&ds90ub940_data, 0, sizeof(ds90ub940_data));
+	ds90ub940_data.mclk = plat_data->mclk;
+	ds90ub940_data.mclk_source = plat_data->mclk_source;
+	ds90ub940_data.csi = plat_data->csi;
+	ds90ub940_data.io_init = plat_data->io_init;
+	ds90ub940_data.i2c_client = client;
+
+	// see if chip is answering i2c, reset then write / read back
+	retval = ub9xx_write_reg(UB9XX_RESET, 0x02);
+	if(!retval)
+		retval = ub9xx_write_reg(UB9XX_MAILBOX_18, 0xed);
+	if(!retval)
+		retval = ub9xx_read_reg(UB9XX_MAILBOX_18, &regval);
+	if(retval || (regval != 0xed)) {
+		pr_err("%s i2c failure. err=%d val=0x%02x\n", __func__, retval, regval);
+		return retval < 0 ? retval : -EINVAL;
+	}
+
+	// set everything to default mode
+	ds90ub940_data.pix.pixelformat = ds90ub940_modes[ds90ub940_mode_default].pixelFormat;
+	ds90ub940_data.pix.width  = ds90ub940_modes[ds90ub940_mode_default].width;
+	ds90ub940_data.pix.height  = ds90ub940_modes[ds90ub940_mode_default].height;
+	ds90ub940_data.streamcap.capturemode = ds90ub940_mode_default;
+	ds90ub940_data.streamcap.timeperframe.denominator = ds90ub940_modes[ds90ub940_mode_default].fps;
+	ds90ub940_data.streamcap.timeperframe.numerator = 1;
 
 	if (plat_data->io_init)
 		plat_data->io_init();
@@ -1032,59 +716,74 @@ static int ov5640_probe(struct i2c_client *client,
 	if (plat_data->pwdn)
 		plat_data->pwdn(0);
 
-	camera_plat = plat_data;
-
-	ov5640_int_device.priv = &ov5640_data;                  // need this line
-	retval = v4l2_int_device_register(&ov5640_int_device);  // need this line
+	ds90ub940_int_device.priv = &ds90ub940_data;                  // need this line
+	retval = v4l2_int_device_register(&ds90ub940_int_device);  // need this line
 
 	return retval;
 }
 
 /*!
- * ov5640 I2C detach function
+ * ds90ub940 I2C detach function
  *
  * @param client            struct i2c_client *
  * @return  Error code indicating success or failure
  */
-static int ov5640_remove(struct i2c_client *client)
+static int ds90ub940_remove(struct i2c_client *client)
 {
-	v4l2_int_device_unregister(&ov5640_int_device);
+	v4l2_int_device_unregister(&ds90ub940_int_device);
 	return 0;
 }
 
+static const struct i2c_device_id ds90ub940_id[] = {
+	{"ov5640_mipi", 0},
+	{},
+};
+
+MODULE_DEVICE_TABLE(i2c, ds90ub940_id);
+
+// 
+static struct i2c_driver ds90ub940_i2c_driver = {
+	.driver = {
+		  .owner = THIS_MODULE,
+		  .name  = "ov5640_mipi",
+		  },
+	.probe    = ds90ub940_probe,
+	.remove   = ds90ub940_remove,
+	.id_table = ds90ub940_id,
+};
+
 /*!
- * ov5640 init function
- * Called by insmod ov5640_camera.ko.
+ * ds90ub940 init function
+ * Called by insmod ds90ub940_camera.ko.
  *
  * @return  Error code indicating success or failure
  */
-static __init int ov5640_init(void)
+static __init int ds90ub940_init(void)
 {
 	u8 err;
-
-	err = i2c_add_driver(&ov5640_i2c_driver);
+	err = i2c_add_driver(&ds90ub940_i2c_driver);
 	if (err != 0)
-//		pr_err(">>>> %s: driver registration failed, error=%d\n",__func__, err); // JAD
+		pr_err(">>>> %s: driver registration failed, error=%d\n",__func__, err); // JAD
 
 	return err;
 }
 
 /*!
- * OV5640 cleanup function
- * Called on rmmod ov5640_camera.ko
+ * DS90UB940 cleanup function
+ * Called on rmmod ds90ub940_camera.ko
  *
  * @return  Error code indicating success or failure
  */
-static void __exit ov5640_clean(void)
+static void __exit ds90ub940_clean(void)
 {
-	i2c_del_driver(&ov5640_i2c_driver);
+	i2c_del_driver(&ds90ub940_i2c_driver);
 }
 
-module_init(ov5640_init);
-module_exit(ov5640_clean);
+module_init(ds90ub940_init);
+module_exit(ds90ub940_clean);
 
 MODULE_AUTHOR("Freescale Semiconductor, Inc.");
-MODULE_DESCRIPTION("OV5640 MIPI Camera Driver");
+MODULE_DESCRIPTION("DS90UB940 Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("1.0");
 MODULE_ALIAS("CSI");
