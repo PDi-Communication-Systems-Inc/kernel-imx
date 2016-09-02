@@ -134,6 +134,8 @@
 #define AR6MX_TV_OR_AIO		      AR6MX_TTL_DI5 // float high for TV/Tab, pull low for all-in-one -JTS
 #define AR6MX_ANDROID_PWRSTATE        AR6MX_TTL_DO0
 #define AR6MX_INTERNAL_SPK_ENABLE     AR6MX_TTL_DO1
+#define AR6MX_SPK_DET     	      AR6MX_SD3_RST
+#define AR6MX_HDMIHPD_MAPPING	      IMX_GPIO_NR(2,4)  // recall in mxc_hdmi.c
 
 /* PDi defined GPIO for OV5640 Camera on CSI MIPI CN4 port 
 
@@ -1101,6 +1103,13 @@ static __init void ar6mx_init_external_gpios(void) {
 	gpio_request(AR6MX_INTERNAL_SPK_ENABLE, "int_speaker_enable");       
 	gpio_direction_output(AR6MX_INTERNAL_SPK_ENABLE, 0);
         gpio_export(AR6MX_INTERNAL_SPK_ENABLE, true);
+        // export AIO, SPK_DET to user space to make "Audio Switch" work in repository revision: 1202
+	gpio_request(AR6MX_TV_OR_AIO, "all_in_one_GPIO37");       
+	gpio_direction_input(AR6MX_TV_OR_AIO);
+        gpio_export(AR6MX_TV_OR_AIO, true);      // doge    GPIO37
+	gpio_request(AR6MX_SPK_DET, "spkeaker_detect_gpio200");       
+	gpio_direction_input(AR6MX_SPK_DET);
+        gpio_export(AR6MX_SPK_DET, true);      // doge 7,8  (7-1)*32+8 = 200
 }
 
 /* Backlight PWM for LVDS0 */
