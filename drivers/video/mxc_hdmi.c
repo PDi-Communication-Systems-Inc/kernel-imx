@@ -62,6 +62,9 @@
 #include <mach/mxc_hdmi.h>
 #include <mach/hardware.h>
 
+#include <linux/gpio.h> 			// HPD mapping  Doge 20160901
+#define AR6MX_HDMIHPD_MAPPING	IMX_GPIO_NR(2,4)
+
 #define DISPDRV_HDMI	"hdmi"
 #define HDMI_EDID_LEN		512
 
@@ -2020,6 +2023,7 @@ static void hotplug_worker(struct work_struct *work)
 		if (phy_int_pol & HDMI_PHY_HPD) {
 			/* Plugin event */
 			dev_dbg(&hdmi->pdev->dev, "EVENT=plugin\n");
+			gpio_set_value(AR6MX_HDMIHPD_MAPPING, 1);     
 			mxc_hdmi_cable_connected(hdmi);
 
 			/* Make HPD intr active low to capture unplug event */
@@ -2041,6 +2045,7 @@ static void hotplug_worker(struct work_struct *work)
 		} else if (!(phy_int_pol & HDMI_PHY_HPD)) {
 			/* Plugout event */
 			dev_dbg(&hdmi->pdev->dev, "EVENT=plugout\n");
+			gpio_set_value(AR6MX_HDMIHPD_MAPPING, 0);
 			switch_set_state(&hdmi->sdev_audio, 0);
 			switch_set_state(&hdmi->sdev_display, 0);
 
