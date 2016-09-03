@@ -134,7 +134,6 @@
 #define AR6MX_TV_OR_AIO		      AR6MX_TTL_DI5 // float high for TV/Tab, pull low for all-in-one -JTS
 #define AR6MX_ANDROID_PWRSTATE        AR6MX_TTL_DO0
 #define AR6MX_INTERNAL_SPK_ENABLE     AR6MX_TTL_DO1
-#define AR6MX_SPK_DET     	      AR6MX_SD3_RST
 #define AR6MX_HDMIHPD_MAPPING	      IMX_GPIO_NR(2,4)  // recall in mxc_hdmi.c
 
 /* PDi defined GPIO for OV5640 Camera on CSI MIPI CN4 port 
