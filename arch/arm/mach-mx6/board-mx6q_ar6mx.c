@@ -1109,6 +1109,7 @@ static __init void ar6mx_init_external_gpios(void) {
 	gpio_request(AR6MX_SPK_DET, "spkeaker_detect_gpio200");       
 	gpio_direction_input(AR6MX_SPK_DET);
         gpio_export(AR6MX_SPK_DET, true);      // doge 7,8  (7-1)*32+8 = 200
+        gpio_direction_output(AR6MX_HDMIHPD_MAPPING, 0); //DI4, GPIO36
 }
 
 /* Backlight PWM for LVDS0 */
