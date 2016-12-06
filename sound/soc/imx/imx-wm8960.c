@@ -134,19 +134,50 @@ static int imx_hifi_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	switch ( sample_rate ) {
-	case 44100:
-		dacdiv = WM8960_DAC_DIV_1;
-		sysclk = 11289600;
-		break;
-	case 48000:
-		dacdiv = WM8960_DAC_DIV_1;
-		sysclk = 12288000;
-		break;
-	default:
-		pr_err("-%s(): SND RATE ERROR (%d)\n", __FUNCTION__, sample_rate);
-		return -EINVAL;
-	}
+        //9M<= sysclk <=18M*2
+        //sysclk = sample_rate * 256 * dacdiv
+        //dacdiv = WM8960_DAC_DIV_1 1_5 2 3 4 5_5 6
+        switch ( sample_rate ) {
+        case 48000:
+                dacdiv = WM8960_DAC_DIV_1;
+                sysclk = 48000*256*1;//12288000=12.288M
+                break;
+        case 44100:
+                dacdiv = WM8960_DAC_DIV_1;
+                sysclk = 44100*256*1;//11289600=11.2896M
+                break;
+        case 32000:
+                dacdiv = WM8960_DAC_DIV_1_5;
+                sysclk = 32000*256*3/2;//12288000=12.288M
+                break;
+        case 24000:
+                dacdiv = WM8960_DAC_DIV_2;
+                sysclk = 24000*256*2;//12288000=12.288M
+                break;
+        case 22050:
+                dacdiv = WM8960_DAC_DIV_2;
+                sysclk = 22050*256*2;//11289600=11.2896M
+                break;
+        case 16000:
+                dacdiv = WM8960_DAC_DIV_3;
+                sysclk = 16000*256*3;//12288000=12.288M
+                break;
+        case 12000:
+                dacdiv = WM8960_DAC_DIV_4;
+                sysclk = 12000*256*4;//12288000=12.288M
+                break;
+        case 11250:
+                dacdiv = WM8960_DAC_DIV_4;
+                sysclk = 11250*256*4;//11289600=11.2896M
+                break;
+        case 8000:
+                dacdiv = WM8960_DAC_DIV_6;
+                sysclk = 8000*256*6;//12288000=12.288M
+                break;
+        default:
+                pr_err("-%s(): SND RATE ERROR (%d)\n", __FUNCTION__, sample_rate);
+                return -EINVAL;
+        }
 
 	ret = snd_soc_dai_set_clkdiv(codec_dai, WM8960_DACDIV, dacdiv);
 	if(ret < 0){
